@@ -1,0 +1,149 @@
+#pragma once
+
+#include <cstdint>
+#include <string>
+#include <vector>
+#include <unordered_map>
+#include <unordered_set>
+#include <functional>
+
+#include <fmt/format.h>      // fmt::format_string, fmt::format
+#include "Chat.h"            // ChatHandler
+#include "Log.h"             // LOG_INFO
+#include "AuctionHouseMgr.h" // AuctionHouseId
+#include "Pricing.h"         // PricingResult (from our module)
+#include "ModDynamicAH.h"    // shared types (namespace, header-only helpers)
+
+class ChatHandler;
+
+namespace ModDynamicAH
+{
+    //--------------------------------------------------------------------------------------------------
+    // Configuration for the buy engine
+    //--------------------------------------------------------------------------------------------------
+    struct BuyEngineConfig
+    {
+        bool enabled = false;
+        uint64_t budgetCopper = 0;       // per-cycle budget in copper
+        float minMargin = 0.15f;         // required discount vs fair buyout (0.15 = 15%)
+        uint32_t perItemPerCycleCap = 2; // cap accepted per item per plan cycle
+        uint32_t maxScanRows = 2000;
+        bool blockTrashAndCommon = true; // block q=poor/common unless allow-listed
+
+        // Vendor safety
+        bool vendorConsiderBuyPrice = true;   // treat items with BuyPrice>0 as vendor-sold
+        bool neverAboveVendorBuyPrice = true; // do not buy if (unit buyout) > (vendor BuyPrice)
+        uint32_t minPriceCopper = 10000;      // fallback min when vendor info missing
+
+        // Context (for pricing)
+        bool scarcityEnabled = true;
+        uint32_t onlineCount = 0;
+    };
+
+    //--------------------------------------------------------------------------------------------------
+    // Buy engine: scans AH rows, filters, plans buys, and (for now) traces decisions
+    //--------------------------------------------------------------------------------------------------
+    class BuyEngine
+    {
+    public:
+        BuyEngine() = default;
+
+        // Config / filters
+        void SetConfig(BuyEngineConfig const &cfg) { _cfg = cfg; }
+        void SetFilters(bool allowQuality[6], std::unordered_set<uint32_t> const &whiteAllow);
+        void SetDebug(bool on) { _debug = on; } // enable chat+log traces
+
+        // Planning (provide lambdas from outside to compute scarcity/fair price/vendor info)
+        // scarceFn:  (itemId, houseId) -> active count of the item in that AH
+        // fairFn:    (itemId, activeCount) -> PricingResult (fair price guidance per unit)
+        // vendorFn:  (itemId) -> { isVendor, vendorBuyPrice }
+        void ResetCycle();
+        void BuildPlan(
+            std::function<uint32_t(uint32_t, AuctionHouseId)> scarceFn,
+            std::function<PricingResult(uint32_t, uint32_t)> fairFn,
+            std::function<std::pair<bool, uint32_t>(uint32_t)> vendorFn);
+
+        // Apply up to N planned buys. If dryRun=true, only logs. Returns number “applied” (or would apply).
+        uint32_t Apply(uint32_t maxToApply, bool dryRun, ChatHandler *handler);
+
+        // Introspection / commands
+        size_t QueueSize() const { return _queue.size(); }
+        uint64_t BudgetUsed() const { return _budgetUsed; }
+        uint64_t BudgetLimit() const { return _cfg.budgetCopper; }
+
+        // Command helpers used by .dah buy *
+        void CmdShow(ChatHandler *handler) const;
+        void CmdEnable(ChatHandler *handler, bool enable);
+        void CmdBudget(ChatHandler *handler, uint32_t gold);
+        void CmdMargin(ChatHandler *handler, uint32_t percent);
+        void CmdPerItem(ChatHandler *handler, uint32_t cap);
+        void CmdOnce(ChatHandler *handler,
+                     std::function<uint32_t(uint32_t, AuctionHouseId)> scarceFn,
+                     std::function<PricingResult(uint32_t, uint32_t)> fairFn,
+                     std::function<std::pair<bool, uint32_t>(uint32_t)> vendorFn);
+        void CmdDebug(ChatHandler *handler, bool on);
+        // Compatibility alias (so ModDynamicAH.cpp can call CmdTrace)
+        void CmdTrace(ChatHandler *handler, bool on) { CmdDebug(handler, on); }
+
+    private:
+        struct BuyCandidate
+        {
+            uint32_t auctionId;
+            AuctionHouseId houseId;
+            uint32_t itemId;
+            uint32_t count;  // stack count
+            uint32_t buyout; // total buyout in copper (stack)
+            uint32_t startBid;
+            uint32_t vendorBuy; // vendor BuyPrice (unit), 0 if not vendor
+            float margin;       // computed discount vs fair (0.15 = 15%)
+        };
+
+        // Internal helpers
+        bool _qualityAllowed(uint32_t itemId) const;
+        bool _passesVendorSafety(uint32_t itemId, uint32_t unitBuyout, uint32_t vendorBuy) const;
+
+        // Inline templated tracer using {fmt}; visible to both .cpp and callers
+        static void _traceWhy(ChatHandler *handler,
+                              std::string_view tag,
+                              std::string_view fmtStr)
+        {
+            // base overload (no args) – keeps linker happy if used somewhere
+            const std::string msg(fmtStr);
+            if (handler)
+                handler->SendSysMessage(("ModDynamicAH[BUY][" + std::string(tag) + "] " + msg).c_str());
+            LOG_INFO("mod.dynamicah", "BUY[{}] {}", tag, msg);
+        }
+
+        template <typename... Args>
+        static void _traceWhy(ChatHandler *handler,
+                              std::string_view tag,
+                              std::string_view fmtStr,
+                              Args &&...args)
+        {
+            const std::string msg = fmt::format(fmtStr, std::forward<Args>(args)...);
+            if (handler)
+                handler->SendSysMessage(("ModDynamicAH[BUY][" + std::string(tag) + "] " + msg).c_str());
+            LOG_INFO("mod.dynamicah", "BUY[{}] {}", tag, msg);
+        }
+
+        BuyEngineConfig _cfg;
+
+        bool _allowQuality[6] = {false, false, true, true, true, false};
+        std::unordered_set<uint32_t> _whiteAllow;
+
+        // Plan state
+        std::vector<BuyCandidate> _queue;
+        std::unordered_map<uint32_t, uint32_t> _perItemCount; // itemId -> planned buys in this cycle
+        uint64_t _budgetUsed = 0;
+
+        // Debug
+        bool _debug = true; // default on: emits LOG_INFO here, and to Chat if handler != nullptr (rate-limited)
+        mutable uint32_t _chatLinesThisApply = 0;
+        static constexpr uint32_t _chatLineCapPerApply = 40;
+
+        // Plan-phase chat echo (only when invoked from .dah buy once)
+        ChatHandler *_planEcho = nullptr;
+    };
+    //------------------------------ end class BuyEngine -----------------------------------------------
+
+} // namespace ModDynamicAH

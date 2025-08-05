@@ -1,0 +1,105 @@
+###############################################################################
+#                            ModDynamicAH – default                           #
+#        rename this file to mod_dynamic_ah.conf before first launch          #
+###############################################################################
+
+############################
+#  Core toggles / loop     #
+############################
+ModDynamicAH.Enabled              = 1         # 1 = seller/loop on, 0 = off
+ModDynamicAH.DryRun               = 0         # 1 = simulate only
+ModDynamicAH.Loop.Enabled         = 1         # 1 = auto-run every Interval
+ModDynamicAH.Interval.Minutes     = 30        # minutes between cycles
+
+############################
+#  Seller owners (GUIDs)   #
+#  Run `.dah setup` once—  #
+#  copy printed GUIDs here #
+############################
+ModDynamicAH.Owner.Alliance       = 1016
+ModDynamicAH.Owner.Horde          = 1017
+ModDynamicAH.Owner.Neutral        = 1018
+
+############################
+#  Universal price floor   #
+############################
+ModDynamicAH.MinPriceCopper                 = 10000   # 1 g
+ModDynamicAH.Vendor.MinMarkup               = 0.25
+ModDynamicAH.Vendor.ConsiderBuyPriceAsSold  = 1
+ModDynamicAH.NeverBuyAboveVendorBuyPrice    = 1
+
+############################
+#  Context planner         #
+############################
+ModDynamicAH.Context.Enabled                = 1
+ModDynamicAH.Context.MaxPerTickPerPlayer    = 3   # dust + essence + shard
+ModDynamicAH.Context.SkipVendorMats         = 1   # skip unlimited vendor items
+ModDynamicAH.Debug.ContextLogs              = 0   # set 1 to see [CTX] logs
+
+############################
+#  Random planner          #
+############################
+ModDynamicAH.Random.MaxPerCycle             = 25
+ModDynamicAH.BlockTrashAndCommon            = 1
+ModDynamicAH.AllowQuality.Poor              = 0
+ModDynamicAH.AllowQuality.Normal            = 0
+ModDynamicAH.AllowQuality.Uncommon          = 1
+ModDynamicAH.AllowQuality.Rare              = 1
+ModDynamicAH.AllowQuality.Epic              = 0
+ModDynamicAH.AllowQuality.Legendary         = 0
+
+############################
+#  Stack sizes (per family)#
+############################
+ModDynamicAH.Stack.Default          = 20
+ModDynamicAH.Stack.Dust             = 20
+ModDynamicAH.Stack.Essence          = 10
+ModDynamicAH.Stack.Shard            = 1
+# … (keep others at default 20 unless you need finer tuning)
+
+############################
+#  Caps (anti-flood)       #
+############################
+ModDynamicAH.Cap.Enabled                 = 1
+ModDynamicAH.Cap.TotalPerCycle           = 150
+ModDynamicAH.Cap.House.Alliance          = 80
+ModDynamicAH.Cap.House.Horde             = 80
+ModDynamicAH.Cap.House.Neutral           = 120
+ModDynamicAH.Cap.Family.Herb             = 60
+ModDynamicAH.Cap.Family.Ore              = 50
+ModDynamicAH.Cap.Family.Bar              = 50
+ModDynamicAH.Cap.Family.Cloth            = 60
+ModDynamicAH.Cap.Family.Leather          = 40
+ModDynamicAH.Cap.Family.Dust             = 40
+ModDynamicAH.Cap.Family.Essence          = 40
+ModDynamicAH.Cap.Family.Shard            = 25
+ModDynamicAH.Cap.Family.Stone            = 40
+ModDynamicAH.Cap.Family.Meat             = 20
+ModDynamicAH.Cap.Family.Fish             = 20
+ModDynamicAH.Cap.Family.Gem              = 30
+ModDynamicAH.Cap.Family.Other            = 80
+
+############################
+#  Buyer engine            #
+############################
+ModDynamicAH.Buy.Enabled                 = 1
+ModDynamicAH.Buy.PerCycleBudgetGold      = 100
+ModDynamicAH.Buy.MinMargin               = 15       # % discount needed
+ModDynamicAH.Buy.PerItemPerCycleCap      = 2
+ModDynamicAH.Buy.MaxScanRows             = 2000
+ModDynamicAH.Buy.BlockTrashAndCommon     = 1
+
+############################
+#  Price multipliers (%)   #
+############################
+ModDynamicAH.PriceMul.Dust      = 100
+ModDynamicAH.PriceMul.Essence   = 125
+ModDynamicAH.PriceMul.Shard     = 200
+ModDynamicAH.PriceMul.Elemental = 300
+ModDynamicAH.PriceMul.RareRaw   = 300
+
+############################
+#  Allow-list              #
+############################
+# CSV of ItemIDs that bypass vendor / quality filters.
+ModDynamicAH.WhiteAllowList     = 10938      # Lesser Magic Essence
