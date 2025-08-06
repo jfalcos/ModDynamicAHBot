@@ -674,16 +674,19 @@ namespace
         auto pushed = [&]()
         { ++pushedForPlayer; };
 
+        // --- Tailoring / First Aid (cloth & bandages) ---
         if (plr->HasSkill(SKILL_TAILORING) || plr->HasSkill(SKILL_FIRST_AID))
         {
-            uint16 s = plr->HasSkill(SKILL_TAILORING) ? plr->GetSkillValue(SKILL_TAILORING)
-                                                      : plr->GetSkillValue(SKILL_FIRST_AID);
+            uint16 s = plr->HasSkill(SKILL_TAILORING)
+                           ? plr->GetSkillValue(SKILL_TAILORING)
+                           : plr->GetSkillValue(SKILL_FIRST_AID);
             auto mats = SelectMats(s, TAILORING_CLOTH, std::min<uint32>(g.contextMaxPerBracket, 4u), g.contextWeightBoost);
             for (uint32 id : mats)
                 if (canPush() && EnqueueContextMat(plr, id, g.stCloth, "Cloth", s, seen, StacksForSkill(s), Family::Cloth))
                     pushed();
         }
 
+        // --- Mining (ores) ---
         if (plr->HasSkill(SKILL_MINING))
         {
             uint16 s = plr->GetSkillValue(SKILL_MINING);
@@ -693,44 +696,48 @@ namespace
                     pushed();
         }
 
+        // --- Blacksmithing (bars) ---
         if (canPush() && plr->HasSkill(SKILL_BLACKSMITHING))
         {
             uint16 s = plr->GetSkillValue(SKILL_BLACKSMITHING);
             if (EnqueueContextMat(plr, PickForSkill(s, BS_BARS), g.stBar, "Blacksmithing/Bars", s, seen, StacksForSkill(s), Family::Bar))
                 pushed();
         }
+
+        // --- Enchanting (dusts, essences, shards & rods) ---
         if (canPush() && plr->HasSkill(SKILL_ENCHANTING))
         {
-            if (plr->HasSkill(SKILL_ENCHANTING))
-            {
-                uint16 s = plr->GetSkillValue(SKILL_ENCHANTING);
+            uint16 s = plr->GetSkillValue(SKILL_ENCHANTING);
 
-                // Dust (already handled via ENCH_DUSTS array)
-                auto matsD = SelectMats(s, ENCH_DUSTS, g.contextMaxPerBracket, g.contextWeightBoost);
-                for (uint32 id : matsD)
-                    if (canPush() && EnqueueContextMat(plr, id, g.stDust, "Enchanting/Dust", s, seen, StacksForSkill(s), Family::Dust))
-                        pushed();
+            // 1) Dusts
+            auto matsD = SelectMats(s, ENCH_DUSTS, g.contextMaxPerBracket, g.contextWeightBoost);
+            for (uint32 id : matsD)
+                if (canPush() && EnqueueContextMat(plr, id, g.stDust, "Enchanting/Dust", s, seen, StacksForSkill(s), Family::Dust))
+                    pushed();
 
-                // Essences
-                auto matsE = SelectMats(s, ENCH_ESSENCE, g.contextMaxPerBracket, g.contextWeightBoost);
-                for (uint32 id : matsE)
-                    if (canPush() && EnqueueContextMat(plr, id, g.stDust, "Enchanting/Essence", s, seen, StacksForSkill(s), Family::Essence))
-                        pushed();
+            // 2) Essences
+            auto matsE = SelectMats(s, ENCH_ESSENCE, g.contextMaxPerBracket, g.contextWeightBoost);
+            for (uint32 id : matsE)
+                if (canPush() && EnqueueContextMat(plr, id, g.stDust, "Enchanting/Essence", s, seen, StacksForSkill(s), Family::Essence))
+                    pushed();
 
-                // Shards
-                auto matsS = SelectMats(s, ENCH_SHARDS, g.contextMaxPerBracket, g.contextWeightBoost);
-                for (uint32 id : matsS)
-                    if (canPush() && EnqueueContextMat(plr, id, 1, "Enchanting/Shard", s, seen, 1, Family::Shard))
-                        pushed();
-            }
+            // 3) Shards & Rods (silver/golden/fel-iron rods)
+            auto matsR = SelectMats(s, ENCH_SHARDS, g.contextMaxPerBracket, g.contextWeightBoost);
+            for (uint32 id : matsR)
+                if (canPush() && EnqueueContextMat(plr, id, 1, "Enchanting/Rods & Shards", s, seen, 1, Family::Shard))
+                    pushed();
         }
+
+        // --- Jewelcrafting (prospecting ore) ---
         if (plr->HasSkill(SKILL_JEWELCRAFTING))
         {
             uint16 s = plr->GetSkillValue(SKILL_JEWELCRAFTING);
-            if (canPush())
-                if (EnqueueContextMat(plr, PickForSkill(s, MINING_ORE), g.stOre, "Jewelcrafting/Ore", s, seen, StacksForSkill(s), Family::Ore))
-                    pushed();
+            if (canPush() &&
+                EnqueueContextMat(plr, PickForSkill(s, MINING_ORE), g.stOre, "Jewelcrafting/Ore", s, seen, StacksForSkill(s), Family::Ore))
+                pushed();
         }
+
+        // --- Inscription (herbs) ---
         if (plr->HasSkill(SKILL_INSCRIPTION))
         {
             uint16 s = plr->GetSkillValue(SKILL_INSCRIPTION);
@@ -740,15 +747,31 @@ namespace
                     pushed();
         }
 
+        // --- Alchemy (herbs + philosopher’s-stone dusts/essences) ---
         if (plr->HasSkill(SKILL_ALCHEMY))
         {
             uint16 s = plr->GetSkillValue(SKILL_ALCHEMY);
-            auto mats = SelectMats(s, HERBS, g.contextMaxPerBracket, g.contextWeightBoost);
-            for (uint32 id : mats)
+
+            // 1) Standard herb reagents
+            auto matsH = SelectMats(s, HERBS, g.contextMaxPerBracket, g.contextWeightBoost);
+            for (uint32 id : matsH)
                 if (canPush() && EnqueueContextMat(plr, id, g.stHerb, "Alchemy/Herbs", s, seen, StacksForSkill(s), Family::Herb))
+                    pushed();
+
+            // 2) Philosopher’s-stone dusts (e.g. Strange Dust, Vision Dust…)
+            auto matsD2 = SelectMats(s, ENCH_DUSTS, g.contextMaxPerBracket, g.contextWeightBoost);
+            for (uint32 id : matsD2)
+                if (canPush() && EnqueueContextMat(plr, id, g.stDust, "Alchemy/Dust", s, seen, StacksForSkill(s), Family::Dust))
+                    pushed();
+
+            // 3) Philosopher’s-stone essences (e.g. Lesser Magic Essence…)
+            auto matsE2 = SelectMats(s, ENCH_ESSENCE, g.contextMaxPerBracket, g.contextWeightBoost);
+            for (uint32 id : matsE2)
+                if (canPush() && EnqueueContextMat(plr, id, g.stDust, "Alchemy/Essence", s, seen, StacksForSkill(s), Family::Essence))
                     pushed();
         }
 
+        // --- Herbalism (herbs) ---
         if (plr->HasSkill(SKILL_HERBALISM))
         {
             uint16 s = plr->GetSkillValue(SKILL_HERBALISM);
@@ -758,9 +781,10 @@ namespace
                     pushed();
         }
 
+        // --- Leatherworking & Skinning (leathers) ---
         if (canPush() && plr->HasSkill(SKILL_LEATHERWORKING))
         {
-            uint16 s = plr->HasSkill(SKILL_SKINNING) ? plr->GetSkillValue(SKILL_SKINNING) : 1;
+            uint16 s = plr->GetSkillValue(SKILL_SKINNING);
             if (EnqueueContextMat(plr, PickForSkill(s, LEATHERS), g.stLeather, "Leatherworking/Leather", s, seen, StacksForSkill(s), Family::Leather))
                 pushed();
         }
@@ -770,36 +794,41 @@ namespace
             if (EnqueueContextMat(plr, PickForSkill(s, LEATHERS), g.stLeather, "Skinning/Leather", s, seen, StacksForSkill(s), Family::Leather))
                 pushed();
         }
+
+        // --- Engineering (stones & smelting bars) ---
         if (plr->HasSkill(SKILL_ENGINEERING))
         {
             uint16 eng = plr->GetSkillValue(SKILL_ENGINEERING);
             uint16 mine = plr->HasSkill(SKILL_MINING) ? plr->GetSkillValue(SKILL_MINING) : 1;
             uint16 ref = std::max<uint16>(eng, mine);
 
-            if (canPush())
-                if (EnqueueContextMat(plr, PickForSkill(ref, MINING_STONE), g.stStone, "Engineering/Stone", ref, seen, StacksForSkill(ref), Family::Stone))
-                    pushed();
-            if (canPush())
-                if (EnqueueContextMat(plr, PickForSkill(ref, SMELTING_BARS), g.stBar, "Engineering/Bars", ref, seen, StacksForSkill(ref), Family::Bar))
-                    pushed();
+            if (canPush() &&
+                EnqueueContextMat(plr, PickForSkill(ref, MINING_STONE), g.stStone, "Engineering/Stone", ref, seen, StacksForSkill(ref), Family::Stone))
+                pushed();
+            if (canPush() &&
+                EnqueueContextMat(plr, PickForSkill(ref, SMELTING_BARS), g.stBar, "Engineering/Bars", ref, seen, StacksForSkill(ref), Family::Bar))
+                pushed();
         }
+
+        // --- Cooking (meat) ---
         if (canPush() && plr->HasSkill(SKILL_COOKING))
         {
             uint16 s = plr->GetSkillValue(SKILL_COOKING);
-            static const std::array<MatBracket, 8> COOKING_MEAT =
-                {{
-                    {1, 60, {769, 2672}},
-                    {60, 120, {3173, 3667}},
-                    {120, 180, {3730, 3731}},
-                    {180, 240, {3712, 12223}},
-                    {240, 300, {3174, 12037}},
-                    {300, 325, {27668, 27669}},
-                    {325, 350, {27682, 31670}},
-                    {350, 450, {43013, 43009}},
-                }};
+            static const std::array<MatBracket, 8> COOKING_MEAT = {{
+                {1, 60, {769, 2672}},
+                {60, 120, {3173, 3667}},
+                {120, 180, {3730, 3731}},
+                {180, 240, {3712, 12223}},
+                {240, 300, {3174, 12037}},
+                {300, 325, {27668, 27669}},
+                {325, 350, {27682, 31670}},
+                {350, 450, {43013, 43009}},
+            }};
             if (EnqueueContextMat(plr, PickForSkill(s, COOKING_MEAT), g.stMeat, "Cooking/Meat", s, seen, StacksForSkill(s), Family::Meat))
                 pushed();
         }
+
+        // --- Fishing (raw fish) ---
         if (canPush() && plr->HasSkill(SKILL_FISHING))
         {
             uint16 s = plr->GetSkillValue(SKILL_FISHING);
