@@ -4,6 +4,8 @@
 
 namespace ModDynamicAH
 {
+    enum class Family : uint8_t; // forward-declared so we can pass it by value
+
     struct PricingInputs
     {
         ItemTemplate const *tmpl = nullptr;
@@ -21,8 +23,10 @@ namespace ModDynamicAH
     class PricePolicy
     {
     public:
-        static PricingResult Compute(PricingInputs const &in)
+        static PricingResult Compute(PricingInputs const &in, Family fam)
         {
+            (void)fam; // economy scaling coming soon
+
             PricingResult r;
             if (!in.tmpl)
                 return r;

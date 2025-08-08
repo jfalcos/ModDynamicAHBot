@@ -25,16 +25,16 @@ static const std::array<MatBracket, 7> TAILORING_CLOTH = {{
 
 // -------------------------------- Herbs (Herbalism / Alchemy / Inscription)
 static const std::array<MatBracket, 10> HERBS = {{
-    {1, 70, {2447 /* Silverleaf */, 765 /* Peacebloom */}},
-    {70, 115, {2449 /* Earthroot */, 785 /* Mageroyal */, 2448 /* Briarthorn */}},
-    {115, 165, {2453 /* Bruiseweed */, 3820 /* Stranglekelp */, 2450 /* Swiftthistle */}},
+    {1, 70, {765 /* Silverleaf */, 2447 /* Peacebloom */}},
+    {70, 115, {2449 /* Earthroot */, 785 /* Mageroyal */, 2450 /* Briarthorn */}},
+    {115, 165, {2453 /* Bruiseweed */, 3820 /* Stranglekelp */, 2452 /* Swiftthistle */}},
     {165, 205, {3356 /* Kingsblood */, 3369 /* Grave Moss */, 3355 /* Wild Steelbloom */}},
-    {205, 230, {3358 /* Khadgar’s Whisker */, 3818 /* Fadeleaf */, 3819 /* Dragon’s Teeth */}},
+    {205, 230, {3358 /* Khadgar’s Whisker */, 3818 /* Fadeleaf */, 3819 /* Wintersbite */}},
     {230, 270, {3821 /* Goldthorn */, 4625 /* Firebloom */, 8836 /* Arthas’ Tears */}},
     {270, 300, {8831 /* Purple Lotus */, 8839 /* Blindweed */, 8845 /* Ghost Mushroom */}},
     {300, 325, {22785 /* Felweed */, 22786 /* Dreaming Glory */, 22787 /* Ragveil */}},
     {325, 350, {22789 /* Terocone */, 22790 /* Ancient Lichen */, 36901 /* Goldclover */}},
-    {350, 450, {36901 /* Terocone */, 36903 /* Ancient Lichen */, 11137 /* Vision Dust */, 11176 /* Dream Dust */, 16202 /* Lesser Eternal Essence */, 16204 /* Arcane Dust */}},
+    {350, 450, {36901 /* Goldclover */, 36903 /* Adder’s Tongue */, 11137 /* Vision Dust */, 11176 /* Dream Dust */, 16202 /* Lesser Eternal Essence */, 16204 /* Illusion Dust */}},
 }};
 
 // -------------------------------- Mining: Ore (Mining, JC prospecting)
@@ -53,7 +53,7 @@ static const std::array<MatBracket, 9> MINING_ORE = {{
 // -------------------------------- Smelting bars (Engineering helper)
 static const std::array<MatBracket, 9> SMELTING_BARS = {{
     {1, 65, {2840 /* Copper Bar */}},
-    {65, 125, {3576 /* Bronze Bar */}},
+    {65, 125, {2841 /* Bronze Bar */}},
     {125, 150, {3575 /* Iron Bar */}},
     {150, 200, {3859 /* Steel Bar */}},
     {200, 250, {3860 /* Mithril Bar */}},
@@ -94,7 +94,7 @@ static const std::array<MatBracket, 7> ENCH_DUSTS = {{
     {120, 180, {11083 /* Soul Dust */}},
     {180, 240, {11137 /* Vision Dust */}},
     {240, 300, {11176 /* Dream Dust */}},
-    {300, 325, {16204 /* Arcane Dust */}},
+    {300, 325, {16204 /* Illusion Dust */}},
     {325, 375, {22445 /* Arcane Dust (BC) */}},
     {375, 450, {34054 /* Infinite Dust */}},
 }};
@@ -110,21 +110,21 @@ static const std::array<MatBracket, 5> MINING_STONE = {{
 
 // -------------------------------- Cooking meats
 static const std::array<MatBracket, 8> COOKING_MEAT = {{
-    {1, 60, {769 /* Chunk of Boar */, 2672 /* Stringy Wolf Meat */}},
-    {60, 120, {3173 /* Bear Meat */, 3667 /* Tender Croc Meat */}},
+    {1, 60, {769 /* Chunk of Boar Meat */, 2672 /* Stringy Wolf Meat */}},
+    {60, 120, {3173 /* Bear Meat */, 3667 /* Tender Crocolisk Meat */}},
     {120, 180, {3730 /* Big Bear Meat */, 3731 /* Lion Meat */}},
     {180, 240, {3712 /* Turtle Meat */, 12223 /* Meaty Bat Wing */}},
     {240, 300, {3174 /* Spider Ichor */, 12037 /* Mystery Meat */}},
-    {300, 325, {27668 /* Lynx Rib */, 27669 /* Raptor Rib */}},
-    {325, 350, {27682 /* Talbuk Venison */, 31670 /* Raptor Rib (BC) */}},
+    {300, 325, {27668 /* Lynx Rib */, 27669 /* Bat Flesh */}},
+    {325, 350, {27682 /* Talbuk Venison */, 31670 /* Raptor Ribs */}},
     {350, 450, {43013 /* Chilled Meat */, 43009 /* Shoveltusk Flank */}},
 }};
 
 // -------------------------------- Fishing / raw fish
 static const std::array<MatBracket, 8> FISHING_RAW = {{
-    {1, 75, {6289 /* Raw Longjaw */, 6291 /* Raw Brilliant Smallfish */}},
-    {75, 150, {6308 /* Raw Bristle Whisker */, 6362 /* Raw Rockscale */}},
-    {150, 225, {6359 /* Firefin Snapper */, 6361 /* Raw Rainbow Fin */}},
+    {1, 75, {6289 /* Raw Longjaw Mud Snapper */, 6291 /* Raw Brilliant Smallfish */}},
+    {75, 150, {6308 /* Raw Bristle Whisker Catfish */, 6362 /* Raw Rockscale Cod */}},
+    {150, 225, {6359 /* Firefin Snapper */, 6361 /* Raw Rainbow Fin Albacore */}},
     {225, 300, {13754 /* Raw Glossy Mightfish */, 13758 /* Raw Redgill */}},
     {300, 325, {27422 /* Barbed Gill Trout */, 27425 /* Spotted Feltail */}},
     {325, 350, {27429 /* Zangarian Sporefish */, 27437 /* Icefin Bluefish */}},
@@ -139,7 +139,7 @@ static const std::array<MatBracket, 6> JEWELCRAFT_GEMS = {{
     {230, 300, {7910 /* Star Ruby */, 7909 /* Aquamarine */, 3864 /* Citrine */}},
     {300, 325, {23112 /* Golden Draenite */, 23107 /* Shadow Draenite */}},
     {325, 350, {23436 /* Living Ruby */, 23440 /* Dawnstone */}},
-    {350, 450, {36917 /* Bloodstone */, 36920 /* Chalcedony */, 36929 /* Huge Citrine */, 36932 /* Dark Jade */}},
+    {350, 450, {36917 /* Bloodstone */, 36920 /* Sun Crystal */, 36929 /* Huge Citrine */, 36932 /* Dark Jade */}},
 }};
 
 // -------------------------------- Enchanting essences
@@ -155,11 +155,11 @@ static const std::array<MatBracket, 7> ENCH_ESSENCE = {{
 
 // -------------------------------- Enchanting shards + rods
 static const std::array<MatBracket, 6> ENCH_SHARDS = {{
-    {1, 150, {10978 /* Small Glimmering Shard */, 10998 /* Placeholder */, 6218 /* Runed Copper Rod */, 6219 /* Runed Silver Rod */}},
-    {150, 225, {11138 /* Small Glowing Shard */, 11139 /* Large Glowing Shard */, 38679 /* Runed Golden Rod */, 6217 /* Runed Truesilver Rod */}},
-    {225, 285, {11174 /* Lesser Nether Shard */, 11175 /* Large Nether Shard */, 17706 /* Runed Fel Iron Rod */}},
-    {285, 350, {22448 /* Small Prismatic Shard */, 22449 /* Large Prismatic Shard */, 23489 /* Runed Adamantite Rod */, 23490 /* Runed Eternium Rod */}},
-    {350, 430, {34052 /* Dream Shard */, 34053 /* Nightmare Shard */}},
+    {1, 150, {10978 /* Small Glimmering Shard */, 10998 /* Lesser Astral Essence */, 6218 /* Runed Copper Rod */, 6339 /* Runed Silver Rod */}},
+    {150, 225, {11138 /* Small Glowing Shard */, 11139 /* Large Glowing Shard */, 11130 /* Runed Golden Rod */, 11145 /* Runed Truesilver Rod */}},
+    {225, 285, {11174 /* Lesser Nether Shard */, 11175 /* Large Nether Shard */, 22461 /* Runed Fel Iron Rod */}},
+    {285, 350, {22448 /* Small Prismatic Shard */, 22449 /* Large Prismatic Shard */, 22462 /* Runed Adamantite Rod */, 22463 /* Runed Eternium Rod */}},
+    {350, 430, {34052 /* Dream Shard */, 10649 /* Nightmare Shard */}},
     {430, 450, {52718 /* Majestic Zircon */, 52721 /* Cardinal Ruby */}},
 }};
 
@@ -168,13 +168,13 @@ static const std::array<MatBracket, 4> ELEMENTALS = {{
     {300, 330, {22451 /* Primal Air */, 22452 /* Primal Earth */, 22456 /* Primal Shadow */}},
     {330, 375, {22457 /* Primal Mana */, 21884 /* Primal Fire */, 21885 /* Primal Water */}},
     {375, 425, {37701 /* Crystallized Earth */, 37702 /* Crystallized Fire */, 37703 /* Crystallized Shadow */}},
-    {425, 450, {35622 /* Eternal Water */, 35623 /* Eternal Fire */, 35627 /* Eternal Shadow */}},
+    {425, 450, {35622 /* Eternal Water */, 35623 /* Eternal Air */, 35627 /* Eternal Shadow */}},
 }};
 
 // -------------------------------- Rare raws / special mats
 static const std::array<MatBracket, 4> RARE_RAW = {{
     {250, 310, {12655 /* Enchanted Thorium Bar */}},
-    {330, 375, {23571 /* Primal Might */, 25707 /* Fel Leather */}},
+    {330, 375, {23571 /* Primal Might */, 25707 /* Fel Hide */}},
     {375, 450, {33568 /* Borean Leather */, 43007 /* Northern Spices */, 45087 /* Runed Orb */}},
     {430, 450, {47556 /* Crusader Orb */}},
 }};

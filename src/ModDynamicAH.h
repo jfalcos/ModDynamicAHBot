@@ -108,12 +108,39 @@ namespace ModDynamicAH
     inline constexpr char const *CFG_BUY_MAX_SCAN_ROWS = "ModDynamicAH.Buy.MaxScanRows";
     inline constexpr char const *CFG_BUY_BLOCK_TRASH_COMMON = "ModDynamicAH.Buy.BlockTrashAndCommon";
 
+    // Economy-driven pricing
+    inline constexpr char const *CFG_ECON_GOLD_PER_QUEST = "ModDynamicAH.Economy.GoldPerQuest";
+    inline constexpr char const *CFG_ECON_QPF_PREFIX = "ModDynamicAH.Economy.QuestsPerFamily."; // +FamilyName
+
     // ----------------------------- Shared types --------------------------------
     enum class House : uint8_t
     {
         Alliance = 0,
         Horde = 1,
         Neutral = 2
+    };
+
+    // Auction-category families (caps, pricing, etc.)
+    enum class Family : uint8_t
+    {
+        Herb,
+        Ore,
+        Bar,
+        Cloth,
+        Leather,
+        Dust,
+        Essence,
+        Shard,
+        Stone,
+        Meat,
+        Fish,
+        Gem,
+        Bandage,
+        Potion,
+        Ink,
+        Pigment,
+        Other,
+        COUNT
     };
 
     struct PostRequest

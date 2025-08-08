@@ -44,6 +44,7 @@ static ModDynamicAH::BuyEngine g_buy;
 
 namespace
 {
+    using ModDynamicAH::Family; // use the public enum everywhere in this TU
 
     static void Chatf(ChatHandler *handler, char const *fmt, ...)
     {
@@ -71,28 +72,6 @@ namespace
         }
         return 2;
     }
-
-    enum class Family : uint8
-    {
-        Herb,
-        Ore,
-        Bar,
-        Cloth,
-        Leather,
-        Dust,
-        Essence,
-        Shard,
-        Stone,
-        Meat,
-        Fish,
-        Gem,
-        Bandage,
-        Potion,
-        Ink,
-        Pigment,
-        Other,
-        COUNT
-    };
 
     static const char *FamilyName(Family f)
     {
@@ -190,7 +169,6 @@ namespace
 
         // context
         bool contextEnabled = true;
-        uint32 contextMaxPerTickPerPlayer = 1;
         uint32 contextMaxPerBracket = 4; // how many mats per bracket we may enqueue for one player
         double contextWeightBoost = 1.5; // multiplier for mats that occur in ≥2 recipes
         bool contextSkipVendor = true;
@@ -223,6 +201,10 @@ namespace
         std::unordered_map<uint64, uint32> tickPlanCounts;
 
         std::unordered_map<uint32, uint8> vendorSoldCache;
+
+        // ---- Economy (Gold/Quest scaling) ----
+        double avgGoldPerQuest = 10.0;                       // default if cfg missing
+        uint32 questsPerFamily[(size_t)Family::COUNT] = {0}; // filled from cfg
 
         struct CycleCache
         {
@@ -528,9 +510,6 @@ namespace
             return false;
 
         uint8 vendType = VendorStockType(itemId, tmpl);
-        if (g.contextSkipVendor && vendType == 2 && // skip only unlimited
-            g.whiteAllow.find(itemId) == g.whiteAllow.end())
-            return false;
 
         ModDynamicAH::House house = (plr->GetTeamId() == TEAM_ALLIANCE) ? ModDynamicAH::House::Alliance : ModDynamicAH::House::Horde;
         AuctionHouseId ahId = ToAH(house);
@@ -670,7 +649,7 @@ namespace
         std::unordered_set<uint32> seen;
 
         auto canPush = [&]() -> bool
-        { return pushedForPlayer < g.contextMaxPerTickPerPlayer; };
+        { return true; };
         auto pushed = [&]()
         { ++pushedForPlayer; };
 
@@ -897,7 +876,7 @@ namespace
             else
             {
                 PricingInputs pin{tmpl, 0, g.cycle.onlineCount, g.minPriceCopper};
-                base = PricePolicy::Compute(pin);
+                base = PricePolicy::Compute(pin, Family::Other);
                 g.cycle.baselinePriceByItem.emplace(c.itemId, base);
             }
 
@@ -1227,7 +1206,7 @@ namespace
         {
             ItemTemplate const *tmpl = sObjectMgr->GetItemTemplate(itemId);
             PricingInputs pin{tmpl, active, g.cycle.onlineCount, g.minPriceCopper};
-            return PricePolicy::Compute(pin);
+            return PricePolicy::Compute(pin, Family::Other);
         };
         auto scarceFn = [&](uint32_t itemId, AuctionHouseId house) -> uint32_t
         { return ScarcityCount(itemId, house); };
@@ -1281,7 +1260,6 @@ public:
 
         // context
         g.contextEnabled = sConfigMgr->GetOption<bool>(CFG_CONTEXT_ENABLED, true);
-        g.contextMaxPerTickPerPlayer = sConfigMgr->GetOption<uint32>(CFG_CONTEXT_MAX_PER_TICK_PLAYER, 1);
         g.contextMaxPerBracket = sConfigMgr->GetOption<uint32>(CFG_CONTEXT_MAX_PER_BRACKET, 4u);
         g.contextWeightBoost = sConfigMgr->GetOption<float>(CFG_CONTEXT_WEIGHT_BOOST, 1.5f);
         g.contextSkipVendor = sConfigMgr->GetOption<bool>(CFG_CONTEXT_VENDOR_SKIP, true);
@@ -1347,6 +1325,33 @@ public:
         loadFam(Family::Pigment, FAM("Pigment").c_str(), 20u);
         loadFam(Family::Other, FAM("Other").c_str(), 80u);
 
+        // ----- Economy (Gold-per-Quest) -----
+        g.avgGoldPerQuest = sConfigMgr->GetOption<float>(CFG_ECON_GOLD_PER_QUEST, 10.0f);
+
+        auto loadQpf = [&](Family f, const char *key, uint32 def)
+        { g.questsPerFamily[(size_t)f] = sConfigMgr->GetOption<uint32>(key, def); };
+
+        auto ECON = [](const char *fam)
+        { return std::string(CFG_ECON_QPF_PREFIX) + fam; };
+
+        loadQpf(Family::Herb, ECON("Herb").c_str(), 1u);
+        loadQpf(Family::Ore, ECON("Ore").c_str(), 1u);
+        loadQpf(Family::Bar, ECON("Bar").c_str(), 1u);
+        loadQpf(Family::Cloth, ECON("Cloth").c_str(), 1u);
+        loadQpf(Family::Leather, ECON("Leather").c_str(), 1u);
+        loadQpf(Family::Dust, ECON("Dust").c_str(), 1u);
+        loadQpf(Family::Essence, ECON("Essence").c_str(), 1u);
+        loadQpf(Family::Shard, ECON("Shard").c_str(), 1u);
+        loadQpf(Family::Stone, ECON("Stone").c_str(), 1u);
+        loadQpf(Family::Meat, ECON("Meat").c_str(), 1u);
+        loadQpf(Family::Fish, ECON("Fish").c_str(), 1u);
+        loadQpf(Family::Gem, ECON("Gem").c_str(), 1u);
+        loadQpf(Family::Bandage, ECON("Bandage").c_str(), 1u);
+        loadQpf(Family::Potion, ECON("Potion").c_str(), 1u);
+        loadQpf(Family::Ink, ECON("Ink").c_str(), 1u);
+        loadQpf(Family::Pigment, ECON("Pigment").c_str(), 1u);
+        loadQpf(Family::Other, ECON("Other").c_str(), 1u);
+
         // ---- BUY SIDE: load into engine ----
         BuyEngineConfig bec;
         bec.enabled = sConfigMgr->GetOption<bool>(CFG_BUY_ENABLED, false);
@@ -1385,11 +1390,11 @@ public:
         }
 
         LOG_INFO("mod.dynamicah",
-                 "ModDynamicAH configured: seller={} every {}m; dryRun={} minPrice={}c; context={} perPlayer/tick={}; scarcity={} boostMax={} cap/tick={}; "
+                 "ModDynamicAH configured: seller={} every {}m; dryRun={} minPrice={}c; context={}; scarcity={} boostMax={} cap/tick={}; "
                  "vendor: minMarkup={} considerBuyPrice={}; owners A/H/N: {}/{}/{}; "
                  "Buy: enabled={} budget={}g minMargin={} perItemCap={} scanLimit={} blockTrashCommon={}",
                  g.enableSeller, g.intervalMin, g.dryRun, g.minPriceCopper,
-                 g.contextEnabled, g.contextMaxPerTickPerPlayer,
+                 g.contextEnabled,
                  g.scarcityEnabled, g.scarcityPriceBoostMax, g.scarcityPerItemPerTickCap,
                  g.vendorMinMarkup, g.vendorConsiderBuyPrice,
                  g.ownerAlliance, g.ownerHorde, g.ownerNeutral,
@@ -1515,7 +1520,7 @@ private:
         {
             ItemTemplate const *tmpl = sObjectMgr->GetItemTemplate(itemId);
             PricingInputs pin{tmpl, active, g.cycle.onlineCount, g.minPriceCopper};
-            return PricePolicy::Compute(pin);
+            return PricePolicy::Compute(pin, Family::Other);
         };
         auto scarceFn = [&](uint32_t itemId, AuctionHouseId house) -> uint32_t
         { return ScarcityCount(itemId, house); };
@@ -1681,15 +1686,14 @@ private:
             g.caps.enabled ? "1" : "0",
             std::to_string(g.caps.totalPerCycleLimit),
             g.contextEnabled ? "1" : "0",
-            std::to_string(g.contextMaxPerTickPerPlayer),
             std::to_string(g.postQueue.Size()),
             std::to_string(g_buy.QueueSize()));
         LOG_INFO("mod.dynamicah",
-                 "CMD status: seller={} dryRun={} interval={}m owners A/H/N={}/{}/{} caps={} totalCap={} context={} perPlayer={} postQ={} buyQ={}",
+                 "CMD status: seller={} dryRun={} interval={}m owners A/H/N={}/{}/{} caps={} totalCap={} context={} postQ={} buyQ={}",
                  g.enableSeller, g.dryRun, g.intervalMin,
                  g.ownerAlliance, g.ownerHorde, g.ownerNeutral,
                  g.caps.enabled, g.caps.totalPerCycleLimit,
-                 g.contextEnabled, g.contextMaxPerTickPerPlayer,
+                 g.contextEnabled,
                  g.postQueue.Size(), g_buy.QueueSize());
 
         return true;
@@ -2016,7 +2020,7 @@ private:
         {
             ItemTemplate const *tmpl = sObjectMgr->GetItemTemplate(itemId);
             PricingInputs pin{tmpl, active, g.cycle.onlineCount, g.minPriceCopper};
-            return PricePolicy::Compute(pin);
+            return PricePolicy::Compute(pin, Family::Other);
         };
         auto scarceFn = [&](uint32_t itemId, AuctionHouseId house) -> uint32_t
         { return ScarcityCount(itemId, house); };
