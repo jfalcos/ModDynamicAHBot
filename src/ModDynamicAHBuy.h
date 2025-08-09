@@ -52,6 +52,13 @@ struct BuyCandidate
     public:
         using Config = BuyEngineConfig;
 
+        // Logging helpers
+        void LogBuyDecision(char const* phase, uint32_t aucId, uint32_t itemId, uint32_t count,
+                            uint32_t unitAskCopper, uint32_t fairUnitCopper, double marginPct,
+                            uint32_t budgetRemainCopper, char const* reason) const;
+        void LogBuyResult(uint32_t aucId, uint32_t itemId, uint32_t count,
+                          uint32_t unitPaidCopper, char const* result) const;
+
         BuyEngine() = default;
 
         // Configuration

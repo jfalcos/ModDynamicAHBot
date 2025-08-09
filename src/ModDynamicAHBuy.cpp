@@ -184,7 +184,8 @@ void BuyEngine::BuildPlan(
                           auctionId, itemId, itemName,
                           unitBuyout, MoneyShort(unitBuyout).c_str(),
                           vendorBuy, MoneyShort(vendorBuy).c_str());
-                continue;
+                            LogBuyDecision("skip-vendor", auctionId, itemId, count, unitBuyout, fairUnit, (fairUnit ? (double(fairUnit) - double(unitBuyout)) * 100.0 / double(fairUnit) : 0.0), uint32(_budgetUsed), "vendor-safety");
+continue;
             }
 
             // Margin check (how much cheaper vs fair)
@@ -201,7 +202,8 @@ void BuyEngine::BuildPlan(
                           margin * 100.0f, _cfg.minMargin * 100.0f,
                           buyout, MoneyShort(buyout).c_str(),
                           fairStack, MoneyShort(fairStack).c_str());
-                continue;
+                            LogBuyDecision("skip-margin", auctionId, itemId, count, unitBuyout, fairUnit, (fairUnit ? (double(fairUnit) - double(unitBuyout)) * 100.0 / double(fairUnit) : 0.0), uint32(_budgetUsed), "below min margin");
+continue;
             }
 
             // Per-item per-cycle cap
@@ -212,7 +214,8 @@ void BuyEngine::BuildPlan(
                 _traceWhy(_planEcho, "SKIP",
                           "auc={} item={} '{}' reason=per-item-cap cap={}",
                           auctionId, itemId, itemName, _cfg.perItemPerCycleCap);
-                continue;
+                            LogBuyDecision("skip-cap", auctionId, itemId, count, unitBuyout, fairUnit, (fairUnit ? (double(fairUnit) - double(unitBuyout)) * 100.0 / double(fairUnit) : 0.0), uint32(_budgetUsed), "per-item cap");
+continue;
             }
 
             // Budget check
@@ -225,7 +228,8 @@ void BuyEngine::BuildPlan(
                           buyout, MoneyShort(buyout).c_str(),
                           _budgetUsed, MoneyShort(uint32(_budgetUsed)).c_str(),
                           _cfg.budgetCopper, MoneyShort(uint32(_cfg.budgetCopper)).c_str());
-                continue;
+                            LogBuyDecision("skip-budget", auctionId, itemId, count, unitBuyout, fairUnit, (fairUnit ? (double(fairUnit) - double(unitBuyout)) * 100.0 / double(fairUnit) : 0.0), uint32(_budgetUsed), "budget exceeded");
+continue;
             }
 
             // Accept
@@ -245,11 +249,13 @@ void BuyEngine::BuildPlan(
             ++accepted;
 
             _traceWhy(_planEcho, "ACCEPT",
-                      "auc={} item={} '{}' x{} unitBuyout={} ({}) fairUnit={} ({}) margin={:.1f}% house={}",
+            
+"auc={} item={} '{}' x{} unitBuyout={} ({}) fairUnit={} ({}) margin={:.1f}% house={}",
                       auctionId, itemId, itemName, count,
                       unitBuyout, MoneyShort(unitBuyout).c_str(),
                       fairUnit, MoneyShort(fairUnit).c_str(),
                       margin * 100.0f, static_cast<uint32_t>(houseId));
+            LogBuyDecision("enqueue", auctionId, itemId, count, unitBuyout, fairUnit, (fairUnit ? (double(fairUnit) - double(unitBuyout)) * 100.0 / double(fairUnit) : 0.0), uint32(_budgetUsed), "ok");
 
             if (scanned >= scanLimit)
                 break;
@@ -292,12 +298,14 @@ uint32_t BuyEngine::Apply(uint32_t maxToApply, bool dryRun, ChatHandler *handler
             _traceWhy(handler, "DRY", "auc={} item={} x{} buyout={} margin={:.1f}% house={} vendorBuy={}",
                       c.auctionId, c.itemId, c.count, c.buyout, c.margin * 100.0f,
                       static_cast<uint32_t>(c.houseId), c.vendorBuy);
+            LogBuyResult(c.auctionId, c.itemId, c.count, c.buyout / (c.count ? c.count : 1), "ok-dry");
         }
         else
         {
             // TODO: implement actual buyout logic with mail handling & gold management.
             _traceWhy(handler, "LIVE-NYI", "would buy auc={} item={} x{} buyout={} margin={:.1f}%",
                       c.auctionId, c.itemId, c.count, c.buyout, c.margin * 100.0f);
+            LogBuyResult(c.auctionId, c.itemId, c.count, 0, "live-nyi");
         }
 
         ++applied;
@@ -307,6 +315,31 @@ uint32_t BuyEngine::Apply(uint32_t maxToApply, bool dryRun, ChatHandler *handler
 }
 
 // -------------------------------------------------------------------------------------------------
+
+
+void BuyEngine::LogBuyDecision(char const* phase, uint32_t aucId, uint32_t itemId, uint32_t count,
+                               uint32_t unitAskCopper, uint32_t fairUnitCopper, double marginPct,
+                               uint32_t budgetRemainCopper, char const* reason) const
+{
+    if (!_debug) // keep noise controlled by existing debug flag
+        return;
+    ItemTemplate const* t = sObjectMgr->GetItemTemplate(itemId);
+    LOG_INFO("mod_dynamic_ah",
+             "buy {}: auc={} item={} '{}' x{} ask={}c fair={}c margin={:.1f}% budgetRemain={}c reason={}",
+             phase, aucId, itemId, (t ? t->Name1 : std::string("")), count,
+             unitAskCopper, fairUnitCopper, marginPct, budgetRemainCopper, (reason ? reason : ""));
+}
+
+void BuyEngine::LogBuyResult(uint32_t aucId, uint32_t itemId, uint32_t count,
+                             uint32_t unitPaidCopper, char const* result) const
+{
+    if (!_debug) // optional: respect debug as well
+        return;
+    ItemTemplate const* t = sObjectMgr->GetItemTemplate(itemId);
+    LOG_INFO("mod_dynamic_ah",
+             "buy result: auc={} item={} '{}' x{} unitPaid={}c result={}",
+             aucId, itemId, (t ? t->Name1 : std::string("")), count, unitPaidCopper, (result ? result : ""));
+}
 // Commands
 // -------------------------------------------------------------------------------------------------
 
