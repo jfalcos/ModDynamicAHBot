@@ -1,6 +1,6 @@
 ###############################################################################
 #                            ModDynamicAH – default                           #
-#        rename this file to mod_dynamic_ah.conf before first launch          #
+#   rename this file to mod_dynamic_ah.conf before first launch / rebuild     #
 ###############################################################################
 
 ############################
@@ -8,7 +8,7 @@
 ############################
 ModDynamicAH.Enabled              = 1         # 1 = seller/loop on, 0 = off
 ModDynamicAH.DryRun               = 0         # 1 = simulate only
-ModDynamicAH.Loop.Enabled         = 1         # 1 = auto-run every Interval
+ModDynamicAH.Loop.Enabled         = 1         # auto-plan/execute each Interval
 ModDynamicAH.Interval.Minutes     = 30        # minutes between cycles
 
 ############################
@@ -23,18 +23,41 @@ ModDynamicAH.Owner.Neutral        = 1018
 ############################
 #  Universal price floor   #
 ############################
-ModDynamicAH.MinPriceCopper                 = 10000   # 1 g
-ModDynamicAH.Vendor.MinMarkup               = 0.25
+ModDynamicAH.MinPriceCopper                 = 10000     # 1 g
+ModDynamicAH.Vendor.MinMarkup               = 2.0       # 200 % over vendor buy
 ModDynamicAH.Vendor.ConsiderBuyPriceAsSold  = 1
 ModDynamicAH.NeverBuyAboveVendorBuyPrice    = 1
+
+############################
+#  Economy-driven floor    #
+############################
+ModDynamicAH.Economy.GoldPerQuest           = 2.50      # avg gold a quest yields
+
+#   Minimum quests required to afford **one stack** from each family.
+ModDynamicAH.Economy.QuestsPerFamily.Herb   = 10
+ModDynamicAH.Economy.QuestsPerFamily.Ore    = 12
+ModDynamicAH.Economy.QuestsPerFamily.Bar    = 15
+ModDynamicAH.Economy.QuestsPerFamily.Cloth  = 10
+ModDynamicAH.Economy.QuestsPerFamily.Leather= 14
+ModDynamicAH.Economy.QuestsPerFamily.Dust   = 12
+ModDynamicAH.Economy.QuestsPerFamily.Essence= 12
+ModDynamicAH.Economy.QuestsPerFamily.Shard  = 20
+ModDynamicAH.Economy.QuestsPerFamily.Stone  = 10
+ModDynamicAH.Economy.QuestsPerFamily.Meat   = 8
+ModDynamicAH.Economy.QuestsPerFamily.Fish   = 8
+ModDynamicAH.Economy.QuestsPerFamily.Gem    = 18
+ModDynamicAH.Economy.QuestsPerFamily.Potion = 6
+ModDynamicAH.Economy.QuestsPerFamily.Ink    = 10
+ModDynamicAH.Economy.QuestsPerFamily.Pigment= 10
+ModDynamicAH.Economy.QuestsPerFamily.Other  = 5
 
 ############################
 #  Context planner         #
 ############################
 ModDynamicAH.Context.Enabled                = 1
-ModDynamicAH.Context.MaxPerTickPerPlayer    = 3   # dust + essence + shard
-ModDynamicAH.Context.SkipVendorMats         = 1   # skip unlimited vendor items
-ModDynamicAH.Debug.ContextLogs              = 0   # set 1 to see [CTX] logs
+# *per-player cap removed – config key dropped*
+# ModDynamicAH.Context.MaxPerTickPerPlayer  (obsolete)
+ModDynamicAH.Debug.ContextLogs              = 0          # 1 = verbose
 
 ############################
 #  Random planner          #
@@ -55,7 +78,7 @@ ModDynamicAH.Stack.Default          = 20
 ModDynamicAH.Stack.Dust             = 20
 ModDynamicAH.Stack.Essence          = 10
 ModDynamicAH.Stack.Shard            = 1
-# … (keep others at default 20 unless you need finer tuning)
+# keep others at Default unless needed
 
 ############################
 #  Caps (anti-flood)       #
@@ -84,7 +107,7 @@ ModDynamicAH.Cap.Family.Other            = 80
 ############################
 ModDynamicAH.Buy.Enabled                 = 1
 ModDynamicAH.Buy.PerCycleBudgetGold      = 100
-ModDynamicAH.Buy.MinMargin               = 15       # % discount needed
+ModDynamicAH.Buy.MinMargin               = 15       # % cheaper than fair
 ModDynamicAH.Buy.PerItemPerCycleCap      = 2
 ModDynamicAH.Buy.MaxScanRows             = 2000
 ModDynamicAH.Buy.BlockTrashAndCommon     = 1
@@ -102,4 +125,4 @@ ModDynamicAH.PriceMul.RareRaw   = 300
 #  Allow-list              #
 ############################
 # CSV of ItemIDs that bypass vendor / quality filters.
-ModDynamicAH.WhiteAllowList     = 10938      # Lesser Magic Essence
+ModDynamicAH.WhiteAllowList     = 10938

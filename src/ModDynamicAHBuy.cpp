@@ -5,14 +5,24 @@
 #include "World.h"
 #include "AuctionHouseMgr.h" // AuctionHouseObject, AuctionEntry, sAuctionMgr
 #include "SharedDefines.h"   // ITEM_CLASS_TRADE_GOODS
+#include <cstdarg>
+#include <cstdio>
 
 using namespace ModDynamicAH;
+
+
+
+
+void BuyEngine::SetConfig(BuyEngineConfig const& cfg)
+{
+    _cfg = cfg;
+}
 
 // -------------------------------------------------------------------------------------------------
 // Filters / helpers
 // -------------------------------------------------------------------------------------------------
 
-static std::string MoneyShort(uint32 copper)
+static inline std::string MoneyShort(uint32 copper)
 {
     uint32 g = copper / 10000;
     uint32 s = (copper / 100) % 100;
@@ -26,6 +36,7 @@ static std::string MoneyShort(uint32 copper)
         out += fmt::format("{}c", c);
     return out;
 }
+
 void BuyEngine::SetFilters(bool allowQuality[6], std::unordered_set<uint32_t> const &whiteAllow)
 {
     for (int i = 0; i < 6; ++i)
@@ -50,17 +61,15 @@ bool BuyEngine::_qualityAllowed(uint32_t itemId) const
     if (t->Quality <= ITEM_QUALITY_NORMAL && _whiteAllow.find(itemId) != _whiteAllow.end())
         return true;
 
-    // If it's Trade Goods (profession mats), allow even if it's white/gray.
-    // This matches real WoW behavior where profession mats are commonly traded.
+    // Trade Goods (profession mats) are allowed even if white/gray.
     if (t->Class == ITEM_CLASS_TRADE_GOODS)
         return true;
 
-    // If caller configured "block trash & common", then block poor/common that are not allow-listed
+    // If configured to block poor/common, then block them unless allow-listed
     if ((t->Quality <= ITEM_QUALITY_NORMAL) && _cfg.blockTrashAndCommon)
         return false;
 
-    // Otherwise, enforce the quality mask for uncommon+ (and for common when not blocking)
-    if (t->Quality < 0 || t->Quality > 5)
+    if (t->Quality > 5) // safety
         return false;
 
     return _allowQuality[t->Quality];
@@ -70,7 +79,6 @@ bool BuyEngine::_passesVendorSafety(uint32_t /*itemId*/, uint32_t unitBuyout, ui
 {
     if (!_cfg.neverAboveVendorBuyPrice)
         return true;
-
     if (!_cfg.vendorConsiderBuyPrice)
         return true;
 
@@ -86,9 +94,9 @@ bool BuyEngine::_passesVendorSafety(uint32_t /*itemId*/, uint32_t unitBuyout, ui
 // -------------------------------------------------------------------------------------------------
 
 void BuyEngine::BuildPlan(
-    std::function<uint32_t(uint32_t, AuctionHouseId)> scarceFn,
-    std::function<PricingResult(uint32_t, uint32_t)> fairFn,
-    std::function<std::pair<bool, uint32_t>(uint32_t)> vendorFn)
+    std::function<std::uint32_t(std::uint32_t, AuctionHouseId)> scarceFn,
+    std::function<ModDynamicAH::PricingResult(std::uint32_t, std::uint32_t)> fairFn,
+    std::function<std::pair<bool, std::uint32_t>(std::uint32_t)> vendorFn)
 {
     if (!_cfg.enabled)
     {
@@ -147,7 +155,6 @@ void BuyEngine::BuildPlan(
                 _traceWhy(_planEcho, "SKIP",
                           "auc={} item={} '{}' quality={} filtered",
                           auctionId, itemId, itemName, uint32_t(tmpl->Quality));
-
                 continue;
             }
 
@@ -157,7 +164,7 @@ void BuyEngine::BuildPlan(
             uint32_t activeCount = scarceFn ? scarceFn(itemId, houseId) : 0;
             PricingResult fair = fairFn ? fairFn(itemId, activeCount) : PricingResult{0, 0};
 
-            // Compute "fair value" for this stack (use buyout guidance per unit if available)
+            // Compute "fair value" for this stack (prefer buyout guidance per unit if available)
             uint32_t fairUnit = fair.buyout ? fair.buyout : std::max<uint32_t>(_cfg.minPriceCopper, tmpl->SellPrice * 2);
             uint32_t fairStack = fairUnit * count;
 
@@ -175,8 +182,8 @@ void BuyEngine::BuildPlan(
                 _traceWhy(_planEcho, "SKIP",
                           "auc={} item={} '{}' reason=vendor-safety unitBuyout={} ({}) vendorBuy={} ({})",
                           auctionId, itemId, itemName,
-                          unitBuyout, MoneyShort(unitBuyout),
-                          vendorBuy, MoneyShort(vendorBuy));
+                          unitBuyout, MoneyShort(unitBuyout).c_str(),
+                          vendorBuy, MoneyShort(vendorBuy).c_str());
                 continue;
             }
 
@@ -192,9 +199,8 @@ void BuyEngine::BuildPlan(
                           "auc={} item={} '{}' reason=margin-too-small margin={:.1f}% need>={:.1f}% buyout={} ({}) fairStack={} ({})",
                           auctionId, itemId, itemName,
                           margin * 100.0f, _cfg.minMargin * 100.0f,
-                          buyout, MoneyShort(buyout),
-                          fairStack, MoneyShort(fairStack));
-
+                          buyout, MoneyShort(buyout).c_str(),
+                          fairStack, MoneyShort(fairStack).c_str());
                 continue;
             }
 
@@ -206,7 +212,6 @@ void BuyEngine::BuildPlan(
                 _traceWhy(_planEcho, "SKIP",
                           "auc={} item={} '{}' reason=per-item-cap cap={}",
                           auctionId, itemId, itemName, _cfg.perItemPerCycleCap);
-
                 continue;
             }
 
@@ -217,10 +222,9 @@ void BuyEngine::BuildPlan(
                 _traceWhy(_planEcho, "SKIP",
                           "auc={} item={} '{}' reason=budget-exceeded buyout={} ({}) used={} ({}) limit={} ({})",
                           auctionId, itemId, itemName,
-                          buyout, MoneyShort(buyout),
-                          _budgetUsed, MoneyShort(uint32(_budgetUsed)),
-                          _cfg.budgetCopper, MoneyShort(uint32(_cfg.budgetCopper)));
-
+                          buyout, MoneyShort(buyout).c_str(),
+                          _budgetUsed, MoneyShort(uint32(_budgetUsed)).c_str(),
+                          _cfg.budgetCopper, MoneyShort(uint32(_cfg.budgetCopper)).c_str());
                 continue;
             }
 
@@ -243,8 +247,8 @@ void BuyEngine::BuildPlan(
             _traceWhy(_planEcho, "ACCEPT",
                       "auc={} item={} '{}' x{} unitBuyout={} ({}) fairUnit={} ({}) margin={:.1f}% house={}",
                       auctionId, itemId, itemName, count,
-                      unitBuyout, MoneyShort(unitBuyout),
-                      fairUnit, MoneyShort(fairUnit),
+                      unitBuyout, MoneyShort(unitBuyout).c_str(),
+                      fairUnit, MoneyShort(fairUnit).c_str(),
                       margin * 100.0f, static_cast<uint32_t>(houseId));
 
             if (scanned >= scanLimit)
@@ -252,7 +256,7 @@ void BuyEngine::BuildPlan(
         }
     };
 
-    // Scan all 3 houses until we hit scanLimit
+    // Scan houses until we hit scanLimit
     scanHouse(AuctionHouseId::Alliance);
     if (scanned < scanLimit)
         scanHouse(AuctionHouseId::Horde);
@@ -361,8 +365,7 @@ void BuyEngine::CmdOnce(ChatHandler *handler,
                         std::function<std::pair<bool, uint32_t>(uint32_t)> vendorFn)
 {
     ResetCycle();
-    // Enable chat echo of plan-phase reasons for this one command
-    _planEcho = handler;
+    _planEcho = handler; // echo reasons for this one run
     BuildPlan(scarceFn, fairFn, vendorFn);
     _planEcho = nullptr;
 

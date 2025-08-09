@@ -1,13 +1,10 @@
-/*
- * Loader export required by AzerothCore.
- * Folder name: mod_dynamic_ah
- * The core will call: Addmod_dynamic_ahScripts()
- * We forward that to AddDynamicAhScripts() implemented in ModDynamicAH.cpp
- */
+#include "DynamicAHWorld.h"
+#include "DynamicAHCommands.h"
 
-void AddDynamicAhScripts(); // implemented in ModDynamicAH.cpp
-
-void Addmod_dynamic_ahScripts()
+void AddDynamicAhScripts()
 {
-    AddDynamicAhScripts();
+    new ModDynamicAH::DynamicAHWorld();
+    new DynamicAHCommands();
 }
+
+void Addmod_dynamic_ahScripts() { AddDynamicAhScripts(); }
