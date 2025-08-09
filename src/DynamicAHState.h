@@ -47,7 +47,7 @@ namespace ModDynamicAH
 
         // stacks & categories
         uint32_t stDefault = 20;
-        uint32_t stCloth = 20, stOre = 20, stBar = 20, stHerb = 20, stLeather = 20, stDust = 20, stEssence = 20, stShard = 20, stGem = 20, stStone = 20, stMeat = 20, stBandage = 20, stPotion = 5, stInk = 10, stPigment = 20, stFish = 20;
+        uint32_t stCloth = 20, stOre = 20, stBar = 20, stHerb = 20, stLeather = 20, stDust = 20, stGem = 20, stStone = 20, stMeat = 20, stBandage = 20, stPotion = 5, stInk = 10, stPigment = 20, stFish = 20;
         uint32_t stacksLow = 2, stacksMid = 3, stacksHigh = 2;
 
         // multipliers for pricing
