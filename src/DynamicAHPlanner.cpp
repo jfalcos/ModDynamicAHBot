@@ -5,6 +5,8 @@
 #include "World.h"
 #include "Player.h"
 #include <algorithm>
+#include <array>
+#include <iterator>
 
 namespace ModDynamicAH
 {
@@ -194,6 +196,31 @@ namespace ModDynamicAH
         return 0;
     }
 
+    // Deterministic round-robin across all items of a family (no skill gating).
+    template <size_t N>
+    static uint32 PickByCycle(std::array<MatBracket, N> const &tab, uint32 cycle)
+    {
+        uint32 total = 0;
+        for (auto const &b : tab)
+            total += static_cast<uint32>(b.items.size());
+        if (!total)
+            return 0u;
+
+        uint32 k = cycle % total;
+        for (auto const &b : tab)
+        {
+            uint32 sz = static_cast<uint32>(b.items.size());
+            if (k < sz)
+            {
+                auto it = b.items.begin();
+                std::advance(it, k);
+                return *it;
+            }
+            k -= sz;
+        }
+        return 0u;
+    }
+
     static bool Enqueue(Player *plr, PlannerConfig const &cfg, DynamicAHPlanner *self,
                         Family fam, uint32 itemId, uint32 desiredStack, uint32 stacksToPost)
     {
@@ -221,6 +248,8 @@ namespace ModDynamicAH
 
     void DynamicAHPlanner::BuildContextPlan(PlannerConfig const &cfg)
     {
+        uint32 cycle = uint32((GameTime::GetGameTime() / MINUTE).count());
+
         if (!cfg.contextEnabled)
             return;
 
@@ -236,63 +265,63 @@ namespace ModDynamicAH
             {
                 uint16 s = plr->HasSkill(SKILL_TAILORING) ? plr->GetSkillValue(SKILL_TAILORING)
                                                           : plr->GetSkillValue(SKILL_FIRST_AID);
-                if (uint32 id = PickForSkill(s, TAILORING_CLOTH))
-                    Enqueue(plr, cfg, this, Family::Cloth, id, cfg.stCloth, StacksForSkill(s, cfg));
+                if (uint32 id = PickByCycle(TAILORING_CLOTH, cycle + 0))
+                    Enqueue(plr, cfg, this, Family::Cloth, id, cfg.stCloth, 1);
             }
 
             // Mining -> ore
             {
-                uint16 s = plr->GetSkillValue(SKILL_MINING);
-                if (uint32 id = PickForSkill(s, MINING_ORE))
-                    Enqueue(plr, cfg, this, Family::Ore, id, cfg.stOre, StacksForSkill(s, cfg));
+
+                if (uint32 id = PickByCycle(MINING_ORE, cycle + 3))
+                    Enqueue(plr, cfg, this, Family::Ore, id, cfg.stOre, 1);
             }
 
             // Blacksmithing -> bars
             {
-                uint16 s = plr->GetSkillValue(SKILL_BLACKSMITHING);
-                if (uint32 id = PickForSkill(s, BS_BARS))
-                    Enqueue(plr, cfg, this, Family::Bar, id, cfg.stBar, StacksForSkill(s, cfg));
+
+                if (uint32 id = PickByCycle(BS_BARS, cycle + 4))
+                    Enqueue(plr, cfg, this, Family::Bar, id, cfg.stBar, 1);
             }
 
             // Enchanting -> dusts/essences/shards
             {
-                uint16 s = plr->GetSkillValue(SKILL_ENCHANTING);
-                if (uint32 d = PickForSkill(s, ENCH_DUSTS))
-                    Enqueue(plr, cfg, this, Family::Dust, d, cfg.stDust, StacksForSkill(s, cfg));
-                if (uint32 e = PickForSkill(s, ENCH_ESSENCE))
-                    Enqueue(plr, cfg, this, Family::Essence, e, cfg.stDust, StacksForSkill(s, cfg));
-                if (uint32 r = PickForSkill(s, ENCH_SHARDS))
+
+                if (uint32 d = PickByCycle(ENCH_DUSTS, cycle + 6))
+                    Enqueue(plr, cfg, this, Family::Dust, d, cfg.stDust, 1);
+                if (uint32 e = PickByCycle(ENCH_ESSENCE, cycle + 9))
+                    Enqueue(plr, cfg, this, Family::Essence, e, cfg.stDust, 1);
+                if (uint32 r = PickByCycle(ENCH_SHARDS, cycle + 10))
                     Enqueue(plr, cfg, this, Family::Shard, r, 1, 1);
             }
 
             // Inscription/Herbalism/Alchemy -> herbs (keep it simple)
             {
-                uint16 s = std::max<uint16>(plr->GetSkillValue(SKILL_INSCRIPTION), plr->GetSkillValue(SKILL_HERBALISM));
-                if (uint32 id = PickForSkill(s, HERBS))
-                    Enqueue(plr, cfg, this, Family::Herb, id, cfg.stHerb, StacksForSkill(s, cfg));
+
+                if (uint32 id = PickByCycle(HERBS, cycle + 5))
+                    Enqueue(plr, cfg, this, Family::Herb, id, cfg.stHerb, 1);
             }
 
             // Leatherworking / Skinning -> leather
             {
-                uint16 s = std::max<uint16>(plr->GetSkillValue(SKILL_LEATHERWORKING), plr->GetSkillValue(SKILL_SKINNING));
-                if (uint32 id = PickForSkill(s, LEATHERS))
-                    Enqueue(plr, cfg, this, Family::Leather, id, cfg.stLeather, StacksForSkill(s, cfg));
+
+                if (uint32 id = PickByCycle(LEATHERS, cycle + 6))
+                    Enqueue(plr, cfg, this, Family::Leather, id, cfg.stLeather, 1);
             }
 
             // Engineering -> stone + bars
             {
                 uint16 eng = plr->GetSkillValue(SKILL_ENGINEERING);
                 uint16 mine = plr->GetSkillValue(SKILL_MINING);
-                uint16 ref = std::max<uint16>(eng, mine);
-                if (uint32 id = PickForSkill(ref, MINING_STONE))
-                    Enqueue(plr, cfg, this, Family::Stone, id, cfg.stStone, StacksForSkill(ref, cfg));
-                if (uint32 id2 = PickForSkill(ref, SMELTING_BARS))
-                    Enqueue(plr, cfg, this, Family::Bar, id2, cfg.stBar, StacksForSkill(ref, cfg));
+
+                if (uint32 id = PickByCycle(MINING_STONE, cycle + 7))
+                    Enqueue(plr, cfg, this, Family::Stone, id, cfg.stStone, 1);
+                if (uint32 id2 = PickByCycle(SMELTING_BARS, cycle + 4))
+                    Enqueue(plr, cfg, this, Family::Bar, id2, cfg.stBar, 1);
             }
 
             // Cooking -> meat
             {
-                uint16 s = plr->GetSkillValue(SKILL_COOKING);
+
                 static const std::array<MatBracket, 8> COOKING_MEAT = {{
                     {1, 60, {769, 2672}},
                     {60, 120, {3173, 3667}},
@@ -303,15 +332,15 @@ namespace ModDynamicAH
                     {325, 350, {27682, 31670}},
                     {350, 450, {43013, 43009}},
                 }};
-                if (uint32 id = PickForSkill(s, COOKING_MEAT))
-                    Enqueue(plr, cfg, this, Family::Meat, id, cfg.stMeat, StacksForSkill(s, cfg));
+                if (uint32 id = PickByCycle(COOKING_MEAT, cycle + 1))
+                    Enqueue(plr, cfg, this, Family::Meat, id, cfg.stMeat, 1);
             }
 
             // Fishing -> fish
             {
-                uint16 s = plr->GetSkillValue(SKILL_FISHING);
-                if (uint32 id = PickForSkill(s, FISHING_RAW))
-                    Enqueue(plr, cfg, this, Family::Fish, id, cfg.stFish, StacksForSkill(s, cfg));
+
+                if (uint32 id = PickByCycle(FISHING_RAW, cycle + 2))
+                    Enqueue(plr, cfg, this, Family::Fish, id, cfg.stFish, 1);
             }
         }
     }

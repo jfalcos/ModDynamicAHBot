@@ -8,6 +8,7 @@
 #include "ProfessionMats.h"
 #include "DynamicAHPricing.h"
 #include "DynamicAHDifficulty.h"
+#include <limits>
 
 using namespace ModDynamicAH;
 
@@ -299,11 +300,10 @@ void Service::CmdFund(ChatHandler *handler, uint32 gold, std::string const &whic
                                  gold, which.c_str(), inlist.c_str());
 }
 
-void Service::CmdCapsShow(ChatHandler *handler)
+void Service::CmdCapsShow(ChatHandler* handler)
 {
     auto const &c = state_.caps;
-    if (!handler)
-        return;
+    if (!handler) return;
     handler->PSendSysMessage("ModDynamicAH[caps]: enabled={} totalPerCycle={}", c.enabled ? 1u : 0u, c.totalPerCycleLimit);
     handler->PSendSysMessage("ModDynamicAH[caps]: perHouse A={} H={} N={} planned A={} H={} N={}",
                              c.perHouseLimit[0], c.perHouseLimit[1], c.perHouseLimit[2],
@@ -313,11 +313,7 @@ void Service::CmdCapsShow(ChatHandler *handler)
     for (size_t i = 0; i < (size_t)Family::COUNT; ++i)
     {
         line += fmt::format(" {}={}", i, c.familyLimit[i]);
-        if ((i + 1) % 6 == 0)
-        {
-            handler->PSendSysMessage("{}", line.c_str());
-            line = "    ";
-        }
+        if ((i+1) % 6 == 0) { handler->PSendSysMessage("{}", line.c_str()); line = "    "; }
     }
     if (!line.empty() && line != "    ")
         handler->PSendSysMessage("{}", line.c_str());
@@ -334,6 +330,12 @@ void Service::DoOneCycle()
     planner_.BuildScarcityCache(g);
     planner_.BuildContextPlan(ToPlannerCfg(g));
     planner_.BuildRandomPlan(ToPlannerCfg(g));
+    {
+        auto batch = planner_.Queue().Drain(std::numeric_limits<uint32_t>::max());
+        for (auto& r : batch)
+            state_.postQueue.Push(std::move(r));
+    }
+
 
     buy_.ResetCycle();
     buy_.SetFilters(g.allowQuality, g.whiteAllow);
@@ -383,6 +385,12 @@ void Service::PlanOnce(ChatHandler *handler)
     planner_.BuildScarcityCache(g);
     planner_.BuildContextPlan(ToPlannerCfg(g));
     planner_.BuildRandomPlan(ToPlannerCfg(g));
+    {
+        auto batch = planner_.Queue().Drain(std::numeric_limits<uint32_t>::max());
+        for (auto& r : batch)
+            state_.postQueue.Push(std::move(r));
+    }
+
 
     buy_.ResetCycle();
     buy_.SetFilters(g.allowQuality, g.whiteAllow);
@@ -404,7 +412,7 @@ void Service::PlanOnce(ChatHandler *handler)
     };
     buy_.BuildPlan(scarceFn, fairFn, vendorFn);
 
-    handler->PSendSysMessage("ModDynamicAH: Plans built. Posts: {} Buys: {}",
+    handler->PSendSysMessage("ModDynamicAH: Plans built. Posts: {} Buys: %zu",
                              state_.postQueue.Size(), buy_.QueueSize());
 }
 
@@ -419,7 +427,7 @@ void Service::ApplyOnce(ChatHandler *handler)
     uint32_t posted = (beforeP > state_.postQueue.Size()) ? (beforeP - state_.postQueue.Size()) : 0u;
     uint32_t buysApplied = (beforeB > buy_.QueueSize()) ? (uint32_t)(beforeB - buy_.QueueSize()) : 0u;
 
-    handler->PSendSysMessage("ModDynamicAH: Applied ({}). Posted={} left={} | Buys~{} left={}",
+    handler->PSendSysMessage("ModDynamicAH: Applied ({}). Posted={} left={} | Buys~{} left=%zu",
                              state_.dryRun ? "dry-run" : "live",
                              posted, state_.postQueue.Size(), buysApplied, buy_.QueueSize());
 }
@@ -428,13 +436,13 @@ void Service::ClearQueues(ChatHandler *handler)
 {
     ModDynamicAH::DynamicAHPosting::ApplyPlanOnWorld(state_, 1000000, handler);
     buy_.Apply(1000000, state_.dryRun, handler);
-    handler->PSendSysMessage("ModDynamicAH: cleared pending (dry={}) posts={} buys={}",
+    handler->PSendSysMessage("ModDynamicAH: cleared pending (dry={}) posts={} buys=%zu",
                              state_.dryRun ? 1 : 0, state_.postQueue.Size(), buy_.QueueSize());
 }
 
 void Service::ShowQueue(ChatHandler *handler)
 {
-    handler->PSendSysMessage("ModDynamicAH: postQueue={} buyQueue={} budgetUsed={}/{}",
+    handler->PSendSysMessage("ModDynamicAH: postQueue={} buyQueue=%zu budgetUsed={}/{}",
                              state_.postQueue.Size(), buy_.QueueSize(), buy_.BudgetUsed(), buy_.BudgetLimit());
 }
 
@@ -461,15 +469,16 @@ void Service::SetInterval(uint32_t minutes, ChatHandler *handler)
 
 void Service::ShowStatus(ChatHandler *handler)
 {
-    handler->PSendSysMessage("ModDynamicAH: seller={} dryRun={} interval={}m owners A/H/N={}/{}/{} caps={} totalCap={} context={} postQ={} buyQ={}",
-                             state_.enableSeller ? 1u : 0u,
-                             state_.dryRun ? 1u : 0u,
-                             state_.intervalMin,
-                             state_.ownerAlliance, state_.ownerHorde, state_.ownerNeutral,
-                             state_.caps.enabled ? 1u : 0u, state_.caps.totalPerCycleLimit,
-                             state_.contextEnabled ? 1u : 0u,
-                             state_.postQueue.Size(), buy_.QueueSize());
+    handler->PSendSysMessage("ModDynamicAH: seller={} dryRun={} interval={}m owners A/H/N={}/{}/{} caps={} totalCap={} context={} postQ={} buyQ=%zu",
+        state_.enableSeller ? 1u : 0u,
+        state_.dryRun ? 1u : 0u,
+        state_.intervalMin,
+        state_.ownerAlliance, state_.ownerHorde, state_.ownerNeutral,
+        state_.caps.enabled ? 1u : 0u, state_.caps.totalPerCycleLimit,
+        state_.contextEnabled ? 1u : 0u,
+        state_.postQueue.Size(), buy_.QueueSize());
 }
+
 
 // ---- Added implementations for missing admin commands ----
 #include <algorithm>
@@ -477,111 +486,56 @@ void Service::ShowStatus(ChatHandler *handler)
 
 using std::string;
 
+
 static inline std::string ToLower(std::string s)
 {
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c)
-                   { return std::tolower(c); });
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return std::tolower(c); });
     return s;
 }
 
 static inline int HouseIndexFromKey(std::string which)
 {
     which = ToLower(which);
-    if (which == "a" || which == "alliance")
-        return 0;
-    if (which == "h" || which == "horde")
-        return 1;
-    if (which == "n" || which == "neutral")
-        return 2;
+    if (which == "a" || which == "alliance") return 0;
+    if (which == "h" || which == "horde") return 1;
+    if (which == "n" || which == "neutral") return 2;
     return -1;
 }
 
 static inline bool ParseFamilyName(std::string s, Family &out)
 {
     s = ToLower(s);
-    if (s == "herb")
-    {
-        out = Family::Herb;
-        return true;
-    }
-    if (s == "ore")
-    {
-        out = Family::Ore;
-        return true;
-    }
-    if (s == "bar")
-    {
-        out = Family::Bar;
-        return true;
-    }
-    if (s == "cloth")
-    {
-        out = Family::Cloth;
-        return true;
-    }
-    if (s == "leather")
-    {
-        out = Family::Leather;
-        return true;
-    }
-    if (s == "dust")
-    {
-        out = Family::Dust;
-        return true;
-    }
-    if (s == "essence")
-    {
-        out = Family::Essence;
-        return true;
-    }
-    if (s == "shard")
-    {
-        out = Family::Shard;
-        return true;
-    }
-    if (s == "stone")
-    {
-        out = Family::Stone;
-        return true;
-    }
-    if (s == "meat")
-    {
-        out = Family::Meat;
-        return true;
-    }
-    if (s == "fish")
-    {
-        out = Family::Fish;
-        return true;
-    }
-    if (s == "gem")
-    {
-        out = Family::Gem;
-        return true;
-    }
-    if (s == "bandage")
-    {
-        out = Family::Bandage;
-        return true;
-    }
+    if (s=="herb") { out=Family::Herb; return true; }
+    if (s=="ore") { out=Family::Ore; return true; }
+    if (s=="bar") { out=Family::Bar; return true; }
+    if (s=="cloth") { out=Family::Cloth; return true; }
+    if (s=="leather") { out=Family::Leather; return true; }
+    if (s=="dust") { out=Family::Dust; return true; }
+    if (s=="essence") { out=Family::Essence; return true; }
+    if (s=="shard") { out=Family::Shard; return true; }
+    if (s=="stone") { out=Family::Stone; return true; }
+    if (s=="meat") { out=Family::Meat; return true; }
+    if (s=="fish") { out=Family::Fish; return true; }
+    if (s=="gem") { out=Family::Gem; return true; }
+    if (s=="bandage") { out=Family::Bandage; return true; }
     return false;
 }
 
-void Service::CmdCapsEnable(ChatHandler *handler, bool enable)
+void Service::CmdCapsEnable(ChatHandler* handler, bool enable)
 {
     state_.caps.enabled = enable;
     if (handler)
         handler->PSendSysMessage("ModDynamicAH[caps]: enabled={}", enable ? "ON" : "OFF");
 }
 
-void Service::CmdCapsReset(ChatHandler *handler)
+void Service::CmdCapsReset(ChatHandler* handler)
 {
     state_.caps.ResetCounts();
     if (handler)
         handler->PSendSysMessage("ModDynamicAH[caps]: per-house and per-family counts reset.");
 }
 
-void Service::CmdCapsDefaults(ChatHandler *handler)
+void Service::CmdCapsDefaults(ChatHandler* handler)
 {
     // Re-apply configuration defaults for caps
     // This calls the config loader to populate caps.* defaults.
@@ -591,20 +545,18 @@ void Service::CmdCapsDefaults(ChatHandler *handler)
         handler->PSendSysMessage("ModDynamicAH[caps]: limits restored to config defaults.");
 }
 
-void Service::CmdCapsSetTotal(ChatHandler *handler, uint32 value)
+void Service::CmdCapsSetTotal(ChatHandler* handler, uint32 value)
 {
     state_.caps.totalPerCycleLimit = value;
     if (handler)
         handler->PSendSysMessage("ModDynamicAH[caps]: total per-cycle limit set to {}", value);
 }
 
-void Service::CmdCapsSetHouse(ChatHandler *handler, std::string which, uint32 value)
+void Service::CmdCapsSetHouse(ChatHandler* handler, std::string which, uint32 value)
 {
     int idx = HouseIndexFromKey(which);
-    if (idx < 0)
-    {
-        if (handler)
-            handler->PSendSysMessage("Usage: .dah caps house <A|H|N> <value>");
+    if (idx < 0) {
+        if (handler) handler->PSendSysMessage("Usage: .dah caps house <A|H|N> <value>");
         return;
     }
     state_.caps.perHouseLimit[idx] = value;
@@ -612,13 +564,11 @@ void Service::CmdCapsSetHouse(ChatHandler *handler, std::string which, uint32 va
         handler->PSendSysMessage("ModDynamicAH[caps]: house {} limit set to {}", which.c_str(), value);
 }
 
-void Service::CmdCapsSetFamily(ChatHandler *handler, std::string famName, uint32 value)
+void Service::CmdCapsSetFamily(ChatHandler* handler, std::string famName, uint32 value)
 {
     Family fam;
-    if (!ParseFamilyName(famName, fam))
-    {
-        if (handler)
-            handler->PSendSysMessage("Unknown family '{}'", famName.c_str());
+    if (!ParseFamilyName(famName, fam)) {
+        if (handler) handler->PSendSysMessage("Unknown family '{}'", famName.c_str());
         return;
     }
     state_.caps.familyLimit[(size_t)fam] = value;
@@ -626,91 +576,53 @@ void Service::CmdCapsSetFamily(ChatHandler *handler, std::string famName, uint32
         handler->PSendSysMessage("ModDynamicAH[caps]: family {} limit set to {}", famName.c_str(), value);
 }
 
-bool Service::CmdContext(ChatHandler *handler, Optional<std::string> keyOpt, Optional<uint32> valOpt)
+bool Service::CmdContext(ChatHandler* handler, Optional<std::string> keyOpt, Optional<uint32> valOpt)
 {
     auto &s = state_;
-    if (!keyOpt)
-    {
-        if (handler)
-        {
+    if (!keyOpt) {
+        if (handler) {
             handler->PSendSysMessage("ModDynamicAH[context]: enabled={} maxPerBracket={} weightBoost={:.2f} skipVendor={} debug={}",
-                                     s.contextEnabled ? "ON" : "OFF",
-                                     s.contextMaxPerBracket,
-                                     s.contextWeightBoost,
-                                     s.contextSkipVendor ? "ON" : "OFF",
-                                     s.debugContextLogs ? "ON" : "OFF");
+                s.contextEnabled ? "ON":"OFF",
+                s.contextMaxPerBracket,
+                s.contextWeightBoost,
+                s.contextSkipVendor ? "ON":"OFF",
+                s.debugContextLogs ? "ON":"OFF");
         }
         return true;
     }
 
     std::string key = ToLower(*keyOpt);
-    if (key == "enable")
-    {
-        if (!valOpt)
-        {
-            if (handler)
-                handler->PSendSysMessage("Usage: .dah context enable <0|1>");
-            return true;
-        }
+    if (key == "enable") {
+        if (!valOpt) { if (handler) handler->PSendSysMessage("Usage: .dah context enable <0|1>"); return true; }
         s.contextEnabled = (*valOpt != 0);
-        if (handler)
-            handler->PSendSysMessage("ModDynamicAH[context]: enabled={}", s.contextEnabled ? "ON" : "OFF");
+        if (handler) handler->PSendSysMessage("ModDynamicAH[context]: enabled={}", s.contextEnabled ? "ON":"OFF");
         return true;
     }
-    if (key == "maxperbracket")
-    {
-        if (!valOpt)
-        {
-            if (handler)
-                handler->PSendSysMessage("Usage: .dah context maxperbracket <N>");
-            return true;
-        }
+    if (key == "maxperbracket") {
+        if (!valOpt) { if (handler) handler->PSendSysMessage("Usage: .dah context maxperbracket <N>"); return true; }
         s.contextMaxPerBracket = *valOpt;
-        if (handler)
-            handler->PSendSysMessage("ModDynamicAH[context]: maxPerBracket={}", s.contextMaxPerBracket);
+        if (handler) handler->PSendSysMessage("ModDynamicAH[context]: maxPerBracket={}", s.contextMaxPerBracket);
         return true;
     }
-    if (key == "weightboost")
-    {
-        if (!valOpt)
-        {
-            if (handler)
-                handler->PSendSysMessage("Usage: .dah context weightboost <percent>");
-            return true;
-        }
+    if (key == "weightboost") {
+        if (!valOpt) { if (handler) handler->PSendSysMessage("Usage: .dah context weightboost <percent>"); return true; }
         s.contextWeightBoost = float(*valOpt) / 100.0f;
-        if (handler)
-            handler->PSendSysMessage("ModDynamicAH[context]: weightBoost={:.2f}", s.contextWeightBoost);
+        if (handler) handler->PSendSysMessage("ModDynamicAH[context]: weightBoost={:.2f}", s.contextWeightBoost);
         return true;
     }
-    if (key == "skipvendor")
-    {
-        if (!valOpt)
-        {
-            if (handler)
-                handler->PSendSysMessage("Usage: .dah context skipvendor <0|1>");
-            return true;
-        }
+    if (key == "skipvendor") {
+        if (!valOpt) { if (handler) handler->PSendSysMessage("Usage: .dah context skipvendor <0|1>"); return true; }
         s.contextSkipVendor = (*valOpt != 0);
-        if (handler)
-            handler->PSendSysMessage("ModDynamicAH[context]: skipVendor={}", s.contextSkipVendor ? "ON" : "OFF");
+        if (handler) handler->PSendSysMessage("ModDynamicAH[context]: skipVendor={}", s.contextSkipVendor ? "ON":"OFF");
         return true;
     }
-    if (key == "debug")
-    {
-        if (!valOpt)
-        {
-            if (handler)
-                handler->PSendSysMessage("Usage: .dah context debug <0|1>");
-            return true;
-        }
+    if (key == "debug") {
+        if (!valOpt) { if (handler) handler->PSendSysMessage("Usage: .dah context debug <0|1>"); return true; }
         s.debugContextLogs = (*valOpt != 0);
-        if (handler)
-            handler->PSendSysMessage("ModDynamicAH[context]: debug={}", s.debugContextLogs ? "ON" : "OFF");
+        if (handler) handler->PSendSysMessage("ModDynamicAH[context]: debug={}", s.debugContextLogs ? "ON":"OFF");
         return true;
     }
 
-    if (handler)
-        handler->PSendSysMessage("Unknown context key '{}'", key.c_str());
+    if (handler) handler->PSendSysMessage("Unknown context key '{}'", key.c_str());
     return true;
 }

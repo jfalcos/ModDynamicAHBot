@@ -25,19 +25,19 @@ uint64 DynamicAHWorld::NowMs()
     return NowMsInternal();
 }
 
-bool DynamicAHWorld::HandlePlan(ChatHandler *handler)
+bool DynamicAHWorld::HandlePlan(ChatHandler* handler)
 {
     Service::Instance().PlanOnce(handler);
     return true;
 }
 
-bool DynamicAHWorld::HandleRun(ChatHandler *handler)
+bool DynamicAHWorld::HandleRun(ChatHandler* handler)
 {
     Service::Instance().ApplyOnce(handler);
     return true;
 }
 
-bool DynamicAHWorld::HandleLoop(ChatHandler *handler)
+bool DynamicAHWorld::HandleLoop(ChatHandler* handler)
 {
     auto &g = Service::Instance().State();
     g.loopEnabled = !g.loopEnabled;
@@ -46,7 +46,7 @@ bool DynamicAHWorld::HandleLoop(ChatHandler *handler)
     return true;
 }
 
-bool DynamicAHWorld::HandleDryRun(ChatHandler *handler)
+bool DynamicAHWorld::HandleDryRun(ChatHandler* handler)
 {
     auto &g = Service::Instance().State();
     g.dryRun = !g.dryRun;
@@ -55,18 +55,18 @@ bool DynamicAHWorld::HandleDryRun(ChatHandler *handler)
     return true;
 }
 
-bool DynamicAHWorld::HandleStatus(ChatHandler *handler)
+bool DynamicAHWorld::HandleStatus(ChatHandler* handler)
 {
     auto &s = Service::Instance().State();
     if (handler)
     {
-        handler->PSendSysMessage("ModDynamicAH: loop={} dryrun={} intervalMin={} nextRunMs={} queuedPosts={} queuedBuys={}",
-                                 s.loopEnabled ? "ON" : "OFF",
-                                 s.dryRun ? "ON" : "OFF",
-                                 s.intervalMin,
-                                 (unsigned long long)s.nextRunMs,
-                                 s.postQueue.Size(),
-                                 Service::Instance().Buy().QueueSize());
+        handler->PSendSysMessage("ModDynamicAH: loop={} dryrun={} intervalMin={} nextRunMs=%llu queuedPosts={} queuedBuys=%zu",
+            s.loopEnabled ? "ON" : "OFF",
+            s.dryRun ? "ON" : "OFF",
+            s.intervalMin,
+            (unsigned long long)s.nextRunMs,
+            s.postQueue.Size(),
+            Service::Instance().Buy().QueueSize());
     }
     return true;
 }
