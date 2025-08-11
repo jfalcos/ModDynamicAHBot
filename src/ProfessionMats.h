@@ -29,7 +29,7 @@ static const std::array<MatBracket, 10> HERBS = {{
     {70, 115, {2449 /* Earthroot */, 785 /* Mageroyal */, 2450 /* Briarthorn */}},
     {115, 165, {2453 /* Bruiseweed */, 3820 /* Stranglekelp */, 2452 /* Swiftthistle */}},
     {165, 205, {3356 /* Kingsblood */, 3369 /* Grave Moss */, 3355 /* Wild Steelbloom */}},
-    {205, 230, {3358 /* Khadgar’s Whisker */, 3818 /* Fadeleaf */, 3819 /* Wintersbite */}},
+    {205, 230, {3358 /* Khadgar’s Whisker */, 3818 /* Fadeleaf */, 3819 /* Wintersbite */, 9262 /* Black Vitriol*/}},
     {230, 270, {3821 /* Goldthorn */, 4625 /* Firebloom */, 8836 /* Arthas’ Tears */}},
     {270, 300, {8831 /* Purple Lotus */, 8839 /* Blindweed */, 8845 /* Ghost Mushroom */}},
     {300, 325, {22785 /* Felweed */, 22786 /* Dreaming Glory */, 22787 /* Ragveil */}},
@@ -48,19 +48,6 @@ static const std::array<MatBracket, 9> MINING_ORE = {{
     {325, 350, {23425 /* Adamantite Ore */}},
     {350, 395, {36909 /* Cobalt Ore */}},
     {395, 450, {36912 /* Saronite Ore */}},
-}};
-
-// -------------------------------- Smelting bars (Engineering helper)
-static const std::array<MatBracket, 9> SMELTING_BARS = {{
-    {1, 65, {2840 /* Copper Bar */}},
-    {65, 125, {2841 /* Bronze Bar */}},
-    {125, 150, {3575 /* Iron Bar */}},
-    {150, 200, {3859 /* Steel Bar */}},
-    {200, 250, {3860 /* Mithril Bar */}},
-    {250, 300, {12359 /* Thorium Bar */}},
-    {300, 325, {23445 /* Fel Iron Bar */}},
-    {325, 350, {23446 /* Adamantite Bar */}},
-    {350, 450, {36916 /* Cobalt Bar */, 36913 /* Saronite Bar */}},
 }};
 
 // -------------------------------- Blacksmithing bars (trainable path)

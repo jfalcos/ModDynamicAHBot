@@ -5,6 +5,8 @@
 #include "World.h"
 #include "Player.h"
 #include <algorithm>
+#include <vector>
+#include <unordered_set>
 #include "DynamicAHRecipes.h"
 
 namespace ModDynamicAH
@@ -325,100 +327,117 @@ namespace ModDynamicAH
         return true;
     }
 
+    // Enqueue for a specific auction house without needing a Player*
+    static bool EnqueueHouse(AuctionHouseId house, PlannerConfig const &cfg, DynamicAHPlanner *self,
+                             Family fam, uint32 itemId, uint32 desiredStack, uint32 stacksToPost)
+    {
+        if (!itemId)
+            return false;
+
+        ItemTemplate const *tmpl = sObjectMgr->GetItemTemplate(itemId);
+        if (!tmpl)
+            return false;
+
+        uint32 unitStart = 0, unitBuy = 0;
+        self->PriceWithPolicies(cfg, fam, itemId, tmpl, house, unitStart, unitBuy);
+
+        uint32 count = DynamicAHPlanner::ClampToStackable(tmpl, desiredStack);
+        if (count == 0)
+            count = 1;
+
+        uint64 sb = uint64(unitStart) * count;
+        uint64 bo = uint64(unitBuy) * count;
+        if (bo <= sb)
+            bo = sb + 1;
+
+        uint32 stackStart = sb > UINT32_MAX ? UINT32_MAX : uint32(sb);
+        uint32 stackBuy = bo > UINT32_MAX ? UINT32_MAX : uint32(bo);
+
+        char const *houseTag = (house == AuctionHouseId::Alliance ? "A" : house == AuctionHouseId::Horde ? "H"
+                                                                                                         : "N");
+        LOG_INFO("mod.dynamicah",
+                 "plan: item={} '{}' house={} stack={} unitStart={}c unitBuy={}c stackStart={}c stackBuy={}c",
+                 itemId, tmpl->Name1, houseTag, count, unitStart, unitBuy, stackStart, stackBuy);
+
+        for (uint32 i = 0; i < stacksToPost; ++i)
+        {
+            if (!self->TryPlanOnce(house, itemId))
+                break;
+            self->Queue().Push(PostRequest{house, itemId, count, stackStart, stackBuy, 24 * HOUR});
+        }
+        return true;
+    }
+
     void DynamicAHPlanner::BuildContextPlan(PlannerConfig const &cfg)
     {
         if (!cfg.contextEnabled)
             return;
 
-        auto &cont = HashMapHolder<Player>::GetContainer();
-        for (auto const &kv : cont)
+        // Global, once-per-cycle: enqueue every material from all tables exactly once per faction house.
+        std::vector<std::pair<Family, uint32>> allMats;
+        std::unordered_set<uint32> seen;
+
+        auto addAll = [&](Family fam, auto const &tab)
         {
-            Player *plr = kv.second;
-            if (!plr || !plr->IsInWorld())
-                continue;
+            for (auto const &b : tab)
+                for (uint32 id : b.items)
+                    if (seen.insert(id).second)
+                        allMats.emplace_back(fam, id);
+        };
 
-            // Tailoring/First Aid -> cloth
-            if (true)
-            {
-                uint16 s = plr->HasSkill(SKILL_TAILORING) ? plr->GetSkillValue(SKILL_TAILORING)
-                                                          : plr->GetSkillValue(SKILL_FIRST_AID);
-                if (uint32 id = PickForSkill(s, TAILORING_CLOTH))
-                    Enqueue(plr, cfg, this, Family::Cloth, id, cfg.stCloth, StacksForSkill(s, cfg));
-            }
+        // Sweep all known material families
+        addAll(Family::Cloth, TAILORING_CLOTH);
+        addAll(Family::Herb, HERBS);
+        addAll(Family::Ore, MINING_ORE);
+        addAll(Family::Bar, BS_BARS);
+        addAll(Family::Dust, ENCH_DUSTS);
+        addAll(Family::Essence, ENCH_ESSENCE);
+        addAll(Family::Shard, ENCH_SHARDS);
+        addAll(Family::Leather, LEATHERS);
+        addAll(Family::Stone, MINING_STONE);
+        addAll(Family::Meat, COOKING_MEAT);
+        addAll(Family::Fish, FISHING_RAW);
+        addAll(Family::Jewelcrafting, JEWELCRAFT_GEMS)
 
-            // Mining -> ore
+            auto stackSizeFor = [&](Family fam) -> uint32
+        {
+            switch (fam)
             {
-                uint16 s = plr->GetSkillValue(SKILL_MINING);
-                if (uint32 id = PickForSkill(s, MINING_ORE))
-                    Enqueue(plr, cfg, this, Family::Ore, id, cfg.stOre, StacksForSkill(s, cfg));
+            case Family::Cloth:
+                return cfg.stCloth;
+            case Family::Herb:
+                return cfg.stHerb;
+            case Family::Ore:
+                return cfg.stOre;
+            case Family::Bar:
+                return cfg.stBar;
+            case Family::Dust:
+                return cfg.stDust;
+            case Family::Essence:
+                return cfg.stDust; // keep parity with previous behavior
+            case Family::Shard:
+                return 1; // shards single
+            case Family::Leather:
+                return cfg.stLeather;
+            case Family::Stone:
+                return cfg.stStone;
+            case Family::Meat:
+                return cfg.stMeat;
+            case Family::Fish:
+                return cfg.stFish;
+            default:
+                return cfg.stDefault;
             }
+        };
 
-            // Blacksmithing -> bars
-            {
-                uint16 s = plr->GetSkillValue(SKILL_BLACKSMITHING);
-                if (uint32 id = PickForSkill(s, BS_BARS))
-                    Enqueue(plr, cfg, this, Family::Bar, id, cfg.stBar, StacksForSkill(s, cfg));
-            }
+        const AuctionHouseId houses[2] = {AuctionHouseId::Alliance, AuctionHouseId::Horde};
+        const uint32 stacksToPost = cfg.stacksMid;
 
-            // Enchanting -> dusts/essences/shards
-            {
-                uint16 s = plr->GetSkillValue(SKILL_ENCHANTING);
-                if (uint32 d = PickForSkill(s, ENCH_DUSTS))
-                    Enqueue(plr, cfg, this, Family::Dust, d, cfg.stDust, StacksForSkill(s, cfg));
-                if (uint32 e = PickForSkill(s, ENCH_ESSENCE))
-                    Enqueue(plr, cfg, this, Family::Essence, e, cfg.stDust, StacksForSkill(s, cfg));
-                if (uint32 r = PickForSkill(s, ENCH_SHARDS))
-                    Enqueue(plr, cfg, this, Family::Shard, r, 1, 1);
-            }
-
-            // Inscription/Herbalism/Alchemy -> herbs (keep it simple)
-            {
-                uint16 s = std::max<uint16>(plr->GetSkillValue(SKILL_INSCRIPTION), plr->GetSkillValue(SKILL_HERBALISM));
-                if (uint32 id = PickForSkill(s, HERBS))
-                    Enqueue(plr, cfg, this, Family::Herb, id, cfg.stHerb, StacksForSkill(s, cfg));
-            }
-
-            // Leatherworking / Skinning -> leather
-            {
-                uint16 s = std::max<uint16>(plr->GetSkillValue(SKILL_LEATHERWORKING), plr->GetSkillValue(SKILL_SKINNING));
-                if (uint32 id = PickForSkill(s, LEATHERS))
-                    Enqueue(plr, cfg, this, Family::Leather, id, cfg.stLeather, StacksForSkill(s, cfg));
-            }
-
-            // Engineering -> stone + bars
-            {
-                uint16 eng = plr->GetSkillValue(SKILL_ENGINEERING);
-                uint16 mine = plr->GetSkillValue(SKILL_MINING);
-                uint16 ref = std::max<uint16>(eng, mine);
-                if (uint32 id = PickForSkill(ref, MINING_STONE))
-                    Enqueue(plr, cfg, this, Family::Stone, id, cfg.stStone, StacksForSkill(ref, cfg));
-                if (uint32 id2 = PickForSkill(ref, SMELTING_BARS))
-                    Enqueue(plr, cfg, this, Family::Bar, id2, cfg.stBar, StacksForSkill(ref, cfg));
-            }
-
-            // Cooking -> meat
-            {
-                uint16 s = plr->GetSkillValue(SKILL_COOKING);
-                static const std::array<MatBracket, 8> COOKING_MEAT = {{
-                    {1, 60, {769, 2672}},
-                    {60, 120, {3173, 3667}},
-                    {120, 180, {3730, 3731}},
-                    {180, 240, {3712, 12223}},
-                    {240, 300, {3174, 12037}},
-                    {300, 325, {27668, 27669}},
-                    {325, 350, {27682, 31670}},
-                    {350, 450, {43013, 43009}},
-                }};
-                if (uint32 id = PickForSkill(s, COOKING_MEAT))
-                    Enqueue(plr, cfg, this, Family::Meat, id, cfg.stMeat, StacksForSkill(s, cfg));
-            }
-
-            // Fishing -> fish
-            {
-                uint16 s = plr->GetSkillValue(SKILL_FISHING);
-                if (uint32 id = PickForSkill(s, FISHING_RAW))
-                    Enqueue(plr, cfg, this, Family::Fish, id, cfg.stFish, StacksForSkill(s, cfg));
-            }
+        for (auto const &[fam, itemId] : allMats)
+        {
+            uint32 desiredStack = stackSizeFor(fam);
+            for (AuctionHouseId h : houses)
+                EnqueueHouse(h, cfg, this, fam, itemId, desiredStack, stacksToPost);
         }
     }
 

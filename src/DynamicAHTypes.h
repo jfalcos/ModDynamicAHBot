@@ -23,6 +23,7 @@ namespace ModDynamicAH
         Bar,
         Cloth,
         Leather,
+        Jewelcrafting,
         Dust,
         Essence,
         Shard,
@@ -192,9 +193,7 @@ namespace ModDynamicAH
     inline constexpr char const *CFG_SETUP_NEUT_CLASS = "ModDynamicAH.Setup.NeutralClass";
     inline constexpr char const *CFG_SETUP_NEUT_GENDER = "ModDynamicAH.Setup.NeutralGender";
 
-
-
-// Added config keys from old module for feature parity
+    // Added config keys from old module for feature parity
     inline constexpr char const *CFG_CONTEXT_MAX_PER_TICK_PLAYER = "ModDynamicAH.Context.MaxPerTickPerPlayer";
     inline constexpr char const *CFG_CAP_ENABLED = "ModDynamicAH.Cap.Enabled";
     inline constexpr char const *CFG_CAP_TOTAL = "ModDynamicAH.Cap.TotalPerCycle";
@@ -209,9 +208,8 @@ namespace ModDynamicAH
     inline constexpr char const *CFG_BUY_MAX_SCAN_ROWS = "ModDynamicAH.Buy.MaxScanRows";
     inline constexpr char const *CFG_BUY_BLOCK_TRASH_COMMON = "ModDynamicAH.Buy.BlockTrashAndCommon";
 
-
     // Parses a comma/space separated list of uint32s into a set
-    inline std::unordered_set<uint32_t> ParseCsvU32(std::string const& csv)
+    inline std::unordered_set<uint32_t> ParseCsvU32(std::string const &csv)
     {
         std::unordered_set<uint32_t> out;
         uint64_t cur = 0;
@@ -238,4 +236,3 @@ namespace ModDynamicAH
         return out;
     }
 }
-
