@@ -397,9 +397,9 @@ namespace ModDynamicAH
         addAll(Family::Stone, MINING_STONE);
         addAll(Family::Meat, COOKING_MEAT);
         addAll(Family::Fish, FISHING_RAW);
-        addAll(Family::Jewelcrafting, JEWELCRAFT_GEMS)
+        addAll(Family::Jewelcrafting, JEWELCRAFT_GEMS);
 
-            auto stackSizeFor = [&](Family fam) -> uint32
+        auto stackSizeFor = [&](Family fam) -> uint32
         {
             switch (fam)
             {
