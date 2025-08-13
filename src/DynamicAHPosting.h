@@ -19,9 +19,19 @@ namespace ModDynamicAH
 
         static void ApplyPlanOnWorld(ModuleState &s, uint32 maxToApply, ChatHandler *handler);
 
-        // Post a single auction listing
-        static bool PostSingleAuction(ModuleState const &ctx, AuctionHouseId house,
-                                      uint32 itemId, uint32 count, uint32 startBid, uint32 buyout,
-                                      uint32 durationSeconds, ChatHandler *handler);
+        static bool PostSingleAuction(ModuleState const &ctx,
+                                      AuctionHouseId house,
+                                      uint32 itemId, uint32 count,
+                                      uint32 startBid, uint32 buyout,
+                                      uint32 durationSeconds,
+                                      ChatHandler *handler);
+
+        static bool PostSingleAuction(ModuleState const &ctx,
+                                      AuctionHouseId house,
+                                      uint32 itemId, uint32 count,
+                                      uint32 startBid, uint32 buyout,
+                                      uint32 durationSeconds,
+                                      ChatHandler *handler,
+                                      CharacterDatabaseTransaction &trans);
     };
 } // namespace ModDynamicAH

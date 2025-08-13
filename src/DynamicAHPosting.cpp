@@ -33,7 +33,8 @@ namespace ModDynamicAH
                                              uint32 itemId, uint32 count,
                                              uint32 startBid, uint32 buyout,
                                              uint32 durationSeconds,
-                                             ChatHandler *handler)
+                                             ChatHandler *handler,
+                                             CharacterDatabaseTransaction &trans)
     {
         ObjectGuid owner = OwnerGuidFor(ctx, house);
         if (!owner)
@@ -84,10 +85,9 @@ namespace ModDynamicAH
         sAuctionMgr->AddAItem(item);
         auctionHouse->AddAuction(AH);
 
-        CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+        // Append DB work to the provided transaction
         item->SaveToDB(trans);
         AH->SaveToDB(trans);
-        CharacterDatabase.CommitTransaction(trans);
 
         if (handler)
             handler->PSendSysMessage("Posted item {} x{} id={} start={} buyout={} dur={}s house={}",
@@ -95,17 +95,46 @@ namespace ModDynamicAH
         return true;
     }
 
+    bool DynamicAHPosting::PostSingleAuction(ModuleState const &ctx,
+                                             AuctionHouseId house,
+                                             uint32 itemId, uint32 count,
+                                             uint32 startBid, uint32 buyout,
+                                             uint32 durationSeconds,
+                                             ChatHandler *handler)
+    {
+        CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+        bool ok = PostSingleAuction(ctx, house, itemId, count, startBid, buyout, durationSeconds, handler, trans);
+        CharacterDatabase.CommitTransaction(trans);
+        return ok;
+    }
+
+    // Batch apply: one begin/commit for the whole batch
     void DynamicAHPosting::ApplyPlanOnWorld(ModuleState &s, uint32 maxToApply, ChatHandler *handler)
     {
         auto batch = s.postQueue.Drain(maxToApply);
         if (batch.empty())
             return;
 
+        if (s.dryRun)
+        {
+            if (handler)
+                handler->PSendSysMessage("ModDynamicAH (dry-run): would post {} auctions.", uint32(batch.size()));
+            return;
+        }
+
+        CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+
+        uint32 posted = 0;
         for (auto const &r : batch)
         {
-            // If you support dry-run, you can short-circuit here and just log.
-            if (!s.dryRun)
-                PostSingleAuction(s, r.house, r.itemId, r.count, r.startBid, r.buyout, r.duration, handler);
+            if (PostSingleAuction(s, r.house, r.itemId, r.count, r.startBid, r.buyout, r.duration, handler, trans))
+                ++posted;
         }
+
+        CharacterDatabase.CommitTransaction(trans);
+
+        if (handler)
+            handler->PSendSysMessage("ModDynamicAH: posted {}/{} auctions in a single DB commit.",
+                                     posted, uint32(batch.size()));
     }
 } // namespace ModDynamicAH
